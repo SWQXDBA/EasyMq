@@ -1,0 +1,3 @@
+# 项目排除路径
+/client/target/
+/common/target/
