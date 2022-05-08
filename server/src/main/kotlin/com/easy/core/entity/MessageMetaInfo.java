@@ -2,6 +2,7 @@ package com.easy.core.entity;
 
 import com.easy.core.ConsumerGroup;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Set;
@@ -13,9 +14,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author SWQXDBA
  */
-public class MessageMetaInfo {
+public class MessageMetaInfo  implements Serializable {
+    private static final long serialVersionUID = 1L;
     String topicName;
-
     /**
      * 未消费完成的消费组 用于消息重发
      */
