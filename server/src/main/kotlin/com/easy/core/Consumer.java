@@ -6,7 +6,7 @@ import java.util.Objects;
 public class Consumer extends Client {
 
     static int passedTimeSecond = 30;
-    ConsumerGroup group;
+    public ConsumerGroup group;
 
     public LocalDateTime lastResponseTime;
     public Boolean isAlive() {
