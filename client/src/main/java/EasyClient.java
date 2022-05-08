@@ -1,23 +1,13 @@
-import entity.Entity;
-import entity.Person;
+
 import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
-
-import javax.management.loading.ClassLoaderRepository;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.Scanner;
 import java.util.concurrent.ThreadFactory;
 
@@ -29,11 +19,11 @@ public class EasyClient {
         this.host = host;
     }
 
-    private int port;
+    private final int port;
 
-    private String host;
+    private final String host;
+
     public void run(){
-
 
         EventLoopGroup workerGroup = new NioEventLoopGroup(new ThreadFactory() {
             int i = 1;
@@ -66,13 +56,10 @@ public class EasyClient {
 
 
                                 if(str.equals("entity")){
-                                    channelFuture.channel().writeAndFlush(new Entity("name",18));
-                                    channelFuture.channel().writeAndFlush(new Entity());
-                                    channelFuture.channel().writeAndFlush(new Person());
-                                }else{
-                                    channelFuture.channel().writeAndFlush(new Person());
-                                }
 
+                                }else{
+
+                                }
 
                                 channelFuture.channel().writeAndFlush(str);
                             }
@@ -89,5 +76,9 @@ public class EasyClient {
         finally {
             workerGroup.shutdownGracefully();
         }
+    }
+
+    public void sendToTopic(Object msg,String Topic){
+
     }
 }

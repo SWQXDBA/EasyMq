@@ -1,7 +1,6 @@
 package com.easy.server
 
-import com.easy.server.Handler.EntityObjectHandler
-import com.easy.server.Handler.PersonObjectHandler
+
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.DefaultEventLoop
@@ -35,8 +34,7 @@ class EasyServer (  @Value("\${server.port}")
                         ch!!.pipeline()
                             .addLast(ObjectDecoder(Int.MAX_VALUE,ClassResolvers.weakCachingConcurrentResolver(this::class.java.classLoader)))
                             .addLast(ObjectEncoder())
-                            .addLast(EntityObjectHandler())
-                            .addLast(PersonObjectHandler())
+
                     }
 
                 })
