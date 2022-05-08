@@ -1,9 +1,10 @@
 package com.easy;
 
 
-import com.easy.core.entity.Person;
+
 import com.easy.core.message.ProducerToServerMessage;
 import com.easy.core.message.ProducerToServerMessageUnit;
+import com.easy.handler.MessageRouter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.bootstrap.Bootstrap;
@@ -14,20 +15,22 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
-import org.springframework.boot.json.GsonJsonParser;
-import org.springframework.boot.json.JacksonJsonParser;
 
+import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
 
 
 public class EasyClient {
 
+
     ObjectMapper objectMapper = new ObjectMapper();
+
     public EasyClient(int port, String host) {
         this.port = port;
         this.host = host;
     }
+    MessageRouter messageRouter = new MessageRouter();
 
     private final int port;
 
@@ -55,6 +58,9 @@ public class EasyClient {
         producerToServerMessage.messages.add(unit);
         channelFuture.channel().writeAndFlush(producerToServerMessage);
     }
+    public void addListener( String topicName,EasyListener listener){
+        messageRouter.addListener(topicName,listener);
+    }
 
     public void run() {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
@@ -67,8 +73,9 @@ public class EasyClient {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline().addLast(new ObjectDecoder(Integer.MAX_VALUE,
-                            ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())));
-                    ch.pipeline().addLast(new ObjectEncoder());
+                            ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
+                            .addLast(new ObjectEncoder())
+                            .addLast(messageRouter);
 
                 }
             });
@@ -82,7 +89,9 @@ public class EasyClient {
                     Thread thread = new Thread(() -> {
                         while (scanner.hasNext()) {
                             final String str = scanner.nextLine();
-                            sendToTopic(new Person(str), "");
+                            HashMap<String,String> map = new HashMap<>();
+                            map.put("data",str);
+                            sendToTopic(map, "");
                         }
                     });
                     thread.start();

@@ -5,7 +5,6 @@ import com.easy.core.message.ServerToConsumerMessage;
 import com.easy.core.message.TransmissionMessage;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 public class Consumer extends Client {
 
@@ -30,8 +29,8 @@ public class Consumer extends Client {
      * 立刻发送消息
      * @param transmissionMessage
      */
-    public void sendImmediately(TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(transmissionMessage);
+    public void sendImmediately(String topicName,TransmissionMessage transmissionMessage) {
+        getCurrentMessage().putMessage(topicName,transmissionMessage);
         doSend();
     }
 
@@ -49,8 +48,8 @@ public class Consumer extends Client {
      *
      * @param transmissionMessage
      */
-    public synchronized void putMessage(TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(transmissionMessage);
+    public synchronized void putMessage(String topicName,TransmissionMessage transmissionMessage) {
+        getCurrentMessage().putMessage(topicName,transmissionMessage);
         if (needToSend()) {
             doSend();
         }

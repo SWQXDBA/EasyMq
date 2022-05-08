@@ -1,9 +1,7 @@
 package com.easy.core.entity;
 
 import com.easy.core.message.TransmissionMessage;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -96,13 +94,8 @@ public class Topic {
 
     public void putMessage(TransmissionMessage message) {
 
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            final Person person = mapper.readValue(message.data, Person.class);
-            System.out.println(person.name);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
+
         System.out.println(message);
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
 

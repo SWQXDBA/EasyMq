@@ -2,7 +2,7 @@ package com.easy.server
 
 
 import com.easy.core.entity.Topic
-import com.easy.server.handler.ProducerToServerMessageHandler
+import com.easy.server.Handler.ProducerToServerMessageHandler
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -46,7 +46,6 @@ class EasyServer (  @Value("\${server.port}")
                             .addLast(LoggingHandler(LogLevel.INFO))
                             .addLast(ObjectDecoder(Int.MAX_VALUE,ClassResolvers.weakCachingConcurrentResolver(this::class.java.classLoader)))
                             .addLast(ObjectEncoder())
-
                             .addLast(producerToServerMessageHandler)
 
                     }

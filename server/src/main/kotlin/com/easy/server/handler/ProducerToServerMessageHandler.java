@@ -1,9 +1,10 @@
-package com.easy.server.handler;
+package com.easy.server.Handler;
 
 import com.easy.core.entity.MessageId;
 import com.easy.core.entity.Topic;
 import com.easy.core.message.ProducerToServerMessage;
 import com.easy.core.message.ProducerToServerMessageUnit;
+import com.easy.core.message.ServerToConsumerMessage;
 import com.easy.core.message.TransmissionMessage;
 import com.easy.server.EasyServer;
 import io.netty.channel.ChannelHandler;
@@ -48,7 +49,17 @@ public  class ProducerToServerMessageHandler extends SimpleChannelInboundHandler
             TransmissionMessage transmissionMessage = new TransmissionMessage();
             transmissionMessage.setId(messageId);
             transmissionMessage.setData(message.data);
-            topic.putMessage(transmissionMessage);
+
+
+            ServerToConsumerMessage serverToConsumerMessage = new ServerToConsumerMessage();
+            serverToConsumerMessage.putMessage(topicName,transmissionMessage);
+
+            channelHandlerContext.channel().writeAndFlush(serverToConsumerMessage);
+            //     topic.putMessage(transmissionMessage);
+
+
+
+            channelHandlerContext.fireChannelRead(producerToServerMessage);
 
         }
     }
