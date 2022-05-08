@@ -29,9 +29,6 @@ public class Topic {
      * 请注意，只要有任何一个消费者完成了拒绝应答，那么这个消息与那个消费者对应的consumesVersion会被重新分配，对应的consumeTypes会被设置为UNCONSUMED(未消费)
      * <p>
      * 服务器应该在合适的时机把consuming中
-     * UNCONSUMED的消息发送给对应的消费者组，然后把consumeTypes置为CONSUMING (重新发送)
-     * CONSUMING的消息发送给对应的消费者
-     * 如果所有consumeTypes均为 CONSUMED 表示该消息已经被彻底消费完毕!!!此时考虑将其移出consuming。
      * <p>
      * 超时重发策略，服务端会尝试让同一个消费者消费同一条消息，这样可以在网络原因丢失消息的情况下不重复消费。
      * (每个Consumer客户端维持着一个自己的Set<id>)
@@ -109,10 +106,10 @@ public class Topic {
 
     private boolean isMessageConsumed(MessageId messageId) {
 
-        final Set<ConsumerGroup> consumedGroups = messageMetaInfo.consumedGroups.get(messageId);
+        final Set<ConsumerGroup> consumedGroups = messageMetaInfo.unconsumedGroups.get(messageId);
         if (consumedGroups == null) {
             return true;
         }
-        return consumedGroups.size() == consumerGroups.size();
+        return consumedGroups.size() == 0;
     }
 }
