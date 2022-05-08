@@ -1,4 +1,4 @@
-package com.easy.core;
+package com.easy.core.entity;
 
 import com.easy.core.message.TransmissionMessage;
 

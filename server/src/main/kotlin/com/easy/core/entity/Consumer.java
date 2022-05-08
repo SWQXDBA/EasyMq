@@ -1,5 +1,6 @@
-package com.easy.core;
+package com.easy.core.entity;
 
+import com.easy.core.Client;
 import com.easy.core.message.ServerToConsumerMessage;
 import com.easy.core.message.TransmissionMessage;
 
@@ -63,6 +64,7 @@ public class Consumer extends Client {
         if (currentMessage == null) {
             return;
         }
+        System.out.println(currentMessage);
         //todo send currentMessage
 
     }
@@ -74,17 +76,5 @@ public class Consumer extends Client {
         return currentMessage;
     }
 
-    @Override
-    public boolean equals(Object o) {
 
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Consumer consumer = (Consumer) o;
-        return Objects.equals(name, consumer.name) && Objects.equals(ip, consumer.ip) && Objects.equals(port, consumer.port);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(name, ip, port);
-    }
 }

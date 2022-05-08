@@ -1,7 +1,11 @@
 package com.easy.core.entity;
 
-import java.util.Objects;
+import lombok.Getter;
+import lombok.Setter;
 
+import java.util.Objects;
+@Getter
+@Setter
 public class MessageId {
     String topicName;
     String producerName;

@@ -1,6 +1,6 @@
+package com.easy;
 
-
-import java.io.ObjectStreamClass;
+import com.easy.EasyClient;
 
 /**
  * @author SWQXDBA
@@ -8,8 +8,6 @@ import java.io.ObjectStreamClass;
 public class Main {
 
     public static void main(String[] args) {
-
-
         EasyClient client = new EasyClient(8080,"localhost");
         client.run();
     }

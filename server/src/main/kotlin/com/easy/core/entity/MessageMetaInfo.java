@@ -1,7 +1,5 @@
 package com.easy.core.entity;
 
-import com.easy.core.ConsumerGroup;
-
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.HashMap;
