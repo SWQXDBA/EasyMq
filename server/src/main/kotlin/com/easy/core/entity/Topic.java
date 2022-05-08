@@ -2,15 +2,18 @@ package com.easy.core.entity;
 
 import com.easy.core.ConsumerGroup;
 import com.easy.core.MessageQueue;
-import com.easy.core.message.ProducerToServerMessageUnit;
 import com.easy.core.message.TransmissionMessage;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Topic {
     String name;
-    List<MessageQueue> logicQueues;
+    Set<MessageQueue> logicQueues;
     HashMap<String, ConsumerGroup> consumerGroups;
 
     /**
@@ -21,7 +24,7 @@ public class Topic {
     /**
      * 这个topic上的所有消息
      */
-    HashMap<MessageId, TransmissionMessage> messages;
+    ConcurrentHashMap<MessageId, TransmissionMessage> messages;
 
     /**
      * <消息.id,消息>
@@ -35,7 +38,7 @@ public class Topic {
      * 考虑到一个问题 如果某个consumer挂了 那么服务端将无法知道是否被消费了
      * 此时服务端会重新向任意一个同组内的consumer发送这个消息，此时可能造成重复消费，这个要让客户端自己进行避免重复消费。
      */
-    HashMap<MessageId, TransmissionMessage> consumingMessages;
+    ConcurrentHashMap<MessageId, TransmissionMessage> consumingMessages;
 
     AtomicLong idGenerator;
 
@@ -90,14 +93,14 @@ public class Topic {
 
     }
 
-    public void putMessage(ProducerToServerMessageUnit message) {
-        TransmissionMessage coreTransmissionMessage = new TransmissionMessage();
+    public void putMessage(TransmissionMessage message) {
+
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
 
         }
         //     coreTransmissionMessage.id = getNextId();
-        coreTransmissionMessage.data = message.data;
-        enAnyQueue(coreTransmissionMessage);
+        message.data = message.data;
+        enAnyQueue(message);
     }
 
     private void enAnyQueue(TransmissionMessage transmissionMessage) {
