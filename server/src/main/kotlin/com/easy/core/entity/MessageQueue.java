@@ -5,27 +5,44 @@ import com.easy.core.message.TransmissionMessage;
 import java.util.concurrent.BlockingQueue;
 
 public class MessageQueue {
-    BlockingQueue<MessageId> queue ;
+    BlockingQueue<TransmissionMessage> queue ;
+    Topic topic;
+    Thread takeThread;
     /**
      * 往队列中投递一个消息，理论上不会阻塞
      */
     public void store(TransmissionMessage transmissionMessage){
         try {
-            queue.put(transmissionMessage.id);
+            queue.put(transmissionMessage);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
 
+    public MessageQueue(Topic topic) {
+        takeThread = new Thread(this::work);
+        takeThread.start();
+        this.topic = topic;
+    }
+
+
     /**
      * 取出一条消息 可能阻塞
      */
-    public MessageId take(){
+    public TransmissionMessage take(){
         try {
             return queue.take();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         return null;
+    }
+
+    private void work(){
+        while(true){
+            final TransmissionMessage message = take();
+            topic.consumingMessages.add(message.id);
+            topic.sendMessage(message);
+        }
     }
 }

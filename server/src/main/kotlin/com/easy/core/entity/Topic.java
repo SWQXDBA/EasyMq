@@ -12,7 +12,7 @@ public class Topic {
     }
 
     String name;
-    Set<MessageQueue> logicQueues = new HashSet<>();
+    List<MessageQueue> logicQueues = new ArrayList<>();
     HashMap<String, ConsumerGroup> consumerGroups = new HashMap<>();
 
     /**
@@ -42,17 +42,15 @@ public class Topic {
      * 考虑到一个问题 如果某个consumer挂了 那么服务端将无法知道是否被消费了
      * 此时服务端会重新向任意一个同组内的consumer发送这个消息，此时可能造成重复消费，这个要让客户端自己进行避免重复消费。
      */
-    ConcurrentHashMap<MessageId, TransmissionMessage> consumingMessages = new ConcurrentHashMap<>();
+    Set<MessageId> consumingMessages = ConcurrentHashMap.newKeySet();
 
     AtomicLong idGenerator = new AtomicLong();
 
     int resendSeconds;
 
     public void flushConsumingMessages() {
-        final Iterator<Map.Entry<MessageId, TransmissionMessage>> iterator = consumingMessages.entrySet().iterator();
+        final Iterator<MessageId> iterator = consumingMessages.iterator();
         while (iterator.hasNext()) {
-            Map.Entry<MessageId, TransmissionMessage> longMessageEntry = iterator.next();
-            final TransmissionMessage transmissionMessage = longMessageEntry.getValue();
 
 
             //todo 可能要把它移除
@@ -88,13 +86,20 @@ public class Topic {
     }
 
 
-    /**
-     * 当消费者失活后，准备把这个消息重新投递给同一个消费者组的可能是其它消费者，这个方法只是进行一些准备
-     * 具体重新发送是在flushConsumingMessages的时候再执行。
-     */
-    public void sendMessageToGroup(ConsumerGroup consumerGroup, TransmissionMessage transmissionMessage) {
+
+    public void sendMessage(MessageId messageId){
+        sendMessage(messages.get(messageId));
+    }
+    public void sendMessage(TransmissionMessage message){
+        for (ConsumerGroup consumerGroup : consumerGroups.values()) {
+            sendMessageToGroup(consumerGroup,message);
+        }
+    }
 
 
+    private void sendMessageToGroup(ConsumerGroup consumerGroup, TransmissionMessage transmissionMessage) {
+        final Consumer consumer = consumerGroup.nextConsumer();
+        consumer.putMessage(name,transmissionMessage);
     }
 
 
@@ -102,7 +107,7 @@ public class Topic {
         return  messages.containsKey(messageId);
     }
     public void putMessage(TransmissionMessage message) {
-        final ConcurrentHashMap.KeySetView<MessageId, Boolean> setView = messageMetaInfo.receivedMessages;
+        final Set<MessageId> setView = messageMetaInfo.receivedMessages;
         setView.add(message.id);
 
         if (messages.containsKey(message.id)) {

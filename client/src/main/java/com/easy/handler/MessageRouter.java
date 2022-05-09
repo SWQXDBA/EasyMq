@@ -16,7 +16,6 @@ import java.util.Map;
  * @author SWQXDBA
  */
 @ChannelHandler.Sharable
-
 public class MessageRouter extends ChannelInboundHandlerAdapter {
     ObjectMapper objectMapper = new ObjectMapper();
     public Map<String, EasyListener> listeners = new HashMap<>();

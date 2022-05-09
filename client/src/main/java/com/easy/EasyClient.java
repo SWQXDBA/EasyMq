@@ -1,9 +1,9 @@
 package com.easy;
 
 
-
 import com.easy.core.message.ProducerToServerMessage;
 import com.easy.core.message.ProducerToServerMessageUnit;
+import com.easy.handler.ConnectActiveHandler;
 import com.easy.handler.MessageRouter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,25 +24,28 @@ import java.util.concurrent.atomic.AtomicLong;
 public class EasyClient {
 
 
+
+    private final int port;
+
+    private final String host;
+    private ChannelFuture channelFuture;
+
     ObjectMapper objectMapper = new ObjectMapper();
+
+    AtomicLong idGenerator = new AtomicLong();
+
+    MessageRouter messageRouter = new MessageRouter();
+    ConnectActiveHandler connectActiveHandler = new ConnectActiveHandler();
 
     public EasyClient(int port, String host) {
         this.port = port;
         this.host = host;
     }
-    MessageRouter messageRouter = new MessageRouter();
-
-    private final int port;
-
-    private final String host;
-
-    AtomicLong idGenerator = new AtomicLong();
-    private ChannelFuture channelFuture;
 
     public void sendToTopic(Object message, String topicName) {
         final byte[] bytes;
         try {
-            bytes  = objectMapper.writeValueAsBytes(message);
+            bytes = objectMapper.writeValueAsBytes(message);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return;
@@ -58,8 +61,10 @@ public class EasyClient {
         producerToServerMessage.messages.add(unit);
         channelFuture.channel().writeAndFlush(producerToServerMessage);
     }
-    public void addListener( String topicName,EasyListener listener){
-        messageRouter.addListener(topicName,listener);
+
+    public void addListener(String topicName, EasyListener listener) {
+        messageRouter.addListener(topicName, listener);
+        connectActiveHandler.listenedTopics.add(topicName);
     }
 
     public void run() {
@@ -75,6 +80,7 @@ public class EasyClient {
                     ch.pipeline().addLast(new ObjectDecoder(Integer.MAX_VALUE,
                             ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
                             .addLast(new ObjectEncoder())
+                            .addLast(connectActiveHandler)
                             .addLast(messageRouter);
 
                 }
@@ -84,13 +90,13 @@ public class EasyClient {
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    System.out.println("已连接 "+channelFuture.channel().remoteAddress().getClass());
+                    System.out.println("已连接 " + channelFuture.channel().remoteAddress().getClass());
                     Scanner scanner = new Scanner(System.in);
                     Thread thread = new Thread(() -> {
                         while (scanner.hasNext()) {
                             final String str = scanner.nextLine();
-                            HashMap<String,String> map = new HashMap<>();
-                            map.put("data",str);
+                            HashMap<String, String> map = new HashMap<>();
+                            map.put("data", str);
                             sendToTopic(map, "");
                         }
                     });

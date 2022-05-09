@@ -28,5 +28,5 @@ public class MessageMetaInfo  implements Serializable {
     /**
      *   用来告诉producer 此消息已经被服务器接收过
      */
-    ConcurrentHashMap.KeySetView<MessageId,Boolean>  receivedMessages = ConcurrentHashMap.newKeySet();
+    Set<MessageId>  receivedMessages = ConcurrentHashMap.newKeySet();
 }
