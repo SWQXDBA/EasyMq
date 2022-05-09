@@ -99,15 +99,16 @@ public class Topic {
 
 
     public boolean containsMessage(MessageId messageId){
-        return  messageMetaInfo.receivedMessages.contains(messageId);
+        return  messages.containsKey(messageId);
     }
     public void putMessage(TransmissionMessage message) {
         final ConcurrentHashMap.KeySetView<MessageId, Boolean> setView = messageMetaInfo.receivedMessages;
-        if (setView.contains(message.id)) {
-            return;
-        }
         setView.add(message.id);
 
+        if (messages.containsKey(message.id)) {
+            return;
+        }
+        messages.put(message.id,message);
         enAnyQueue(message);
     }
 
