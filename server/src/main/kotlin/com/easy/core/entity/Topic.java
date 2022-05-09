@@ -18,7 +18,12 @@ public class Topic {
     /**
      * 储存一些可丢失的信息，比如消息已经被哪些消费者组消费过
      */
-    MessageMetaInfo messageMetaInfo = new MessageMetaInfo();
+    MessageMetaInfo messageMetaInfo;
+
+    public Topic() {
+        messageMetaInfo = new MessageMetaInfo();
+        messageMetaInfo.topicName = name;
+    }
 
     /**
      * 这个topic上的所有消息
@@ -92,16 +97,17 @@ public class Topic {
 
     }
 
+
+    public boolean containsMessage(MessageId messageId){
+        return  messageMetaInfo.receivedMessages.contains(messageId);
+    }
     public void putMessage(TransmissionMessage message) {
-
-
-
-        System.out.println(message);
-        for (ConsumerGroup consumerGroup : consumerGroups.values()) {
-
+        final ConcurrentHashMap.KeySetView<MessageId, Boolean> setView = messageMetaInfo.receivedMessages;
+        if (setView.contains(message.id)) {
+            return;
         }
-        //     coreTransmissionMessage.id = getNextId();
-        message.data = message.data;
+        setView.add(message.id);
+
         enAnyQueue(message);
     }
 

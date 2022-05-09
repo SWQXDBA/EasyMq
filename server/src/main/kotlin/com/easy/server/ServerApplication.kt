@@ -1,5 +1,6 @@
 package com.easy.server
 
+import kotlinx.coroutines.runBlocking
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
@@ -7,6 +8,9 @@ import org.springframework.boot.runApplication
 class ServerApplication
 
 fun main(args: Array<String>) {
-    val application = runApplication<ServerApplication>(*args)
-    application.getBean(EasyServer::class.java).run()
+    runBlocking{
+        val application = runApplication<ServerApplication>(*args)
+        application.getBean(EasyServer::class.java).run()
+    }
+
 }
