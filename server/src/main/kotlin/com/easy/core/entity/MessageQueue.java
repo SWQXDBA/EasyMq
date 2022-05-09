@@ -3,9 +3,10 @@ package com.easy.core.entity;
 import com.easy.core.message.TransmissionMessage;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 public class MessageQueue {
-    BlockingQueue<TransmissionMessage> queue ;
+    BlockingQueue<TransmissionMessage> queue = new LinkedBlockingQueue<>();
     Topic topic;
     Thread takeThread;
     /**

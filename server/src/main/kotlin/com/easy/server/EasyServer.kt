@@ -1,8 +1,10 @@
 package com.easy.server
 
 
+import com.easy.core.entity.ConsumerGroup
 import com.easy.core.entity.Topic
 import com.easy.core.message.TransmissionMessage
+import com.easy.server.Handler.ConsumerInitMessageHandler
 import com.easy.server.Handler.ProducerToServerMessageHandler
 import com.easy.server.dao.LocalPersistenceProvider
 import io.netty.bootstrap.ServerBootstrap
@@ -25,10 +27,14 @@ import java.util.function.Consumer
 class EasyServer(
     @Value("\${server.port}")
     val port: Int, val producerToServerMessageHandler: ProducerToServerMessageHandler,
-    public val localPersistenceProvider: LocalPersistenceProvider
+    public val localPersistenceProvider: LocalPersistenceProvider,
+    private val consumerInitMessageHandler: ConsumerInitMessageHandler
 ) {
 
     val topics = ConcurrentHashMap<String, Topic>();
+
+    val consumerGroups = HashMap<String,ConsumerGroup>()
+
 
 
     fun run() {
@@ -36,7 +42,6 @@ class EasyServer(
         val bossGroup = NioEventLoopGroup()
         val workGroup = NioEventLoopGroup()
         val defaultEventLoop = DefaultEventLoop()
-
         try {
             serverBootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel::class.java)
@@ -51,7 +56,9 @@ class EasyServer(
                                 )
                             )
                             .addLast(ObjectEncoder())
+                            .addLast(consumerInitMessageHandler)
                             .addLast(producerToServerMessageHandler)
+
 
                     }
 

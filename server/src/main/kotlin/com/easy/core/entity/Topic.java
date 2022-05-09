@@ -1,6 +1,7 @@
 package com.easy.core.entity;
 
 import com.easy.core.message.TransmissionMessage;
+import com.easy.server.EasyServer;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -8,9 +9,13 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Topic {
     public Topic(String name) {
+        messageMetaInfo = new MessageMetaInfo();
+        messageMetaInfo.topicName = name;
         this.name = name;
-    }
 
+        logicQueues.add(new MessageQueue(this));
+    }
+    EasyServer easyServer;
     String name;
     List<MessageQueue> logicQueues = new ArrayList<>();
     HashMap<String, ConsumerGroup> consumerGroups = new HashMap<>();
@@ -19,11 +24,6 @@ public class Topic {
      * 储存一些可丢失的信息，比如消息已经被哪些消费者组消费过
      */
     MessageMetaInfo messageMetaInfo;
-
-    public Topic() {
-        messageMetaInfo = new MessageMetaInfo();
-        messageMetaInfo.topicName = name;
-    }
 
     /**
      * 这个topic上的所有消息
@@ -47,6 +47,12 @@ public class Topic {
     AtomicLong idGenerator = new AtomicLong();
 
     int resendSeconds;
+
+
+    public void registerConsumerGroup(ConsumerGroup consumerGroup){
+        consumerGroups.putIfAbsent(consumerGroup.groupName,consumerGroup);
+
+    }
 
     public void flushConsumingMessages() {
         final Iterator<MessageId> iterator = consumingMessages.iterator();
@@ -91,6 +97,7 @@ public class Topic {
         sendMessage(messages.get(messageId));
     }
     public void sendMessage(TransmissionMessage message){
+
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
             sendMessageToGroup(consumerGroup,message);
         }
@@ -98,8 +105,15 @@ public class Topic {
 
 
     private void sendMessageToGroup(ConsumerGroup consumerGroup, TransmissionMessage transmissionMessage) {
+
         final Consumer consumer = consumerGroup.nextConsumer();
-        consumer.putMessage(name,transmissionMessage);
+        //该组没有消费者
+        if(consumer==null){
+            return;
+        }
+        consumer.putMessage(transmissionMessage);
+
+
     }
 
 
@@ -118,7 +132,7 @@ public class Topic {
     }
 
     private void enAnyQueue(TransmissionMessage transmissionMessage) {
-        //todo 通过负载算法找出一个队列塞进去
+        logicQueues.get(0).store(transmissionMessage);
     }
 
     private boolean isMessageConsumed(MessageId messageId) {

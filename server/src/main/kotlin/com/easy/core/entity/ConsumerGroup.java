@@ -1,11 +1,14 @@
 package com.easy.core.entity;
 
-import java.util.List;
+import com.easy.core.message.ConsumerInitMessage;
+import io.netty.channel.Channel;
+
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ConsumerGroup {
     String groupName;
-    List<Consumer> consumers;
+    ConcurrentHashMap<String,Consumer> consumers = new ConcurrentHashMap<>();
 
     @Override
     public boolean equals(Object o) {
@@ -20,11 +23,22 @@ public class ConsumerGroup {
         return Objects.hash(groupName);
     }
 
+    public ConsumerGroup(String groupName) {
+        this.groupName = groupName;
+    }
+    public void addConsumer(ConsumerInitMessage  message, Channel channel){
+        Consumer consumer = new Consumer(message.getConsumerName(),this,channel);
+        consumers.put(consumer.consumerName,consumer);
+    }
+
     /**
      * 获取下一个消费者
      * @return
      */
     public Consumer nextConsumer(){
+        for (Consumer value : consumers.values()) {
+            return value;
+        }
         return null;
     }
 }

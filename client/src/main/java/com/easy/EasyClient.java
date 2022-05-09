@@ -16,7 +16,6 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
-import java.util.HashMap;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -35,11 +34,19 @@ public class EasyClient {
     AtomicLong idGenerator = new AtomicLong();
 
     MessageRouter messageRouter = new MessageRouter();
-    ConnectActiveHandler connectActiveHandler = new ConnectActiveHandler();
+    ConnectActiveHandler connectActiveHandler ;
 
-    public EasyClient(int port, String host) {
+    /**
+     *
+     * @param port 要连接的服务器端口
+     * @param host 服务器host如127.0.0.1
+     * @param groupName 消费者组名 一条消息只会被消费者组中的某一个消费者消费到
+     * @param consumerName 这个消费者的名字，不同消费者组的消费者可以重名，因为内部会把groupName和consumerName进行一个拼接
+     */
+    public EasyClient(int port, String host,String groupName,String consumerName) {
         this.port = port;
         this.host = host;
+        connectActiveHandler = new ConnectActiveHandler(groupName,consumerName);
     }
 
     public void sendToTopic(Object message, String topicName) {
@@ -57,12 +64,14 @@ public class EasyClient {
         }
         ProducerToServerMessage producerToServerMessage = new ProducerToServerMessage();
         final ProducerToServerMessageUnit unit =
-                new ProducerToServerMessageUnit(idGenerator.getAndIncrement(), bytes, topicName);
+                new ProducerToServerMessageUnit(idGenerator.getAndIncrement(), bytes, topicName,message.getClass());
         producerToServerMessage.messages.add(unit);
         channelFuture.channel().writeAndFlush(producerToServerMessage);
     }
 
-    public void addListener(String topicName, EasyListener listener) {
+    public void addListener( EasyListener<?> listener) {
+        System.out.println(listener);
+        String topicName = listener.topicName;
         messageRouter.addListener(topicName, listener);
         connectActiveHandler.listenedTopics.add(topicName);
     }
@@ -90,14 +99,13 @@ public class EasyClient {
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
-                    System.out.println("已连接 " + channelFuture.channel().remoteAddress().getClass());
+                    System.out.println("已连接 " + channelFuture.channel().remoteAddress());
+
                     Scanner scanner = new Scanner(System.in);
                     Thread thread = new Thread(() -> {
                         while (scanner.hasNext()) {
                             final String str = scanner.nextLine();
-                            HashMap<String, String> map = new HashMap<>();
-                            map.put("data", str);
-                            sendToTopic(map, "");
+                            sendToTopic(str, "topic");
                         }
                     });
                     thread.start();

@@ -5,5 +5,5 @@ import com.easy.core.message.TransmissionMessage
 import java.util.function.Consumer
 
 interface PersistenceProvider {
-   suspend fun save(topicName: String, messageId: MessageId, data:ByteArray):TransmissionMessage
+   suspend fun save(transmissionMessage : TransmissionMessage)
 }

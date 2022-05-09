@@ -9,20 +9,20 @@ import java.util.List;
  */
 public class ServerToConsumerMessage implements Serializable {
     private static final long serialVersionUID = 1L;
-    private List<ServerToConsumerMessageUnit> messages = new ArrayList<>();
+    private List<TransmissionMessage> messages = new ArrayList<>();
 
-    public List<ServerToConsumerMessageUnit> getMessages() {
+    public List<TransmissionMessage> getMessages() {
         return messages;
     }
 
     public ServerToConsumerMessage() {
     }
 
-    public void setMessages(List<ServerToConsumerMessageUnit> messages) {
+    public void setMessages(List<TransmissionMessage> messages) {
         this.messages = messages;
     }
 
-    public void putMessage(String topicName,TransmissionMessage messageUnit) {
-        messages.add(new ServerToConsumerMessageUnit(topicName,messageUnit));
+    public void putMessage(TransmissionMessage messageUnit) {
+        messages.add(messageUnit);
     }
 }

@@ -28,5 +28,17 @@ public class TransmissionMessage implements Serializable {
      */
     public byte[] data;
 
+    /**
+     * 发送时 data的类型
+     */
+    Class<?> dataClass;
 
+    String topicName;
+
+    public TransmissionMessage(MessageId id, byte[] data, Class<?> dataClass,String topicName) {
+        this.id = id;
+        this.data = data;
+        this.dataClass = dataClass;
+        this.topicName = topicName;
+    }
 }

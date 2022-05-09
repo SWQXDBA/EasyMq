@@ -1,12 +1,8 @@
 package com.easy.core.entity;
 
-import lombok.Getter;
-import lombok.Setter;
-
 import java.io.Serializable;
 import java.util.Objects;
-@Getter
-@Setter
+
 public class MessageId implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -34,5 +30,29 @@ public class MessageId implements Serializable {
     }
 
     public MessageId() {
+    }
+
+    public String getTopicName() {
+        return topicName;
+    }
+
+    public void setTopicName(String topicName) {
+        this.topicName = topicName;
+    }
+
+    public String getProducerName() {
+        return producerName;
+    }
+
+    public void setProducerName(String producerName) {
+        this.producerName = producerName;
+    }
+
+    public long getUid() {
+        return uid;
+    }
+
+    public void setUid(long uid) {
+        this.uid = uid;
     }
 }

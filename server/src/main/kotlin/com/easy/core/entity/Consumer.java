@@ -3,15 +3,24 @@ package com.easy.core.entity;
 import com.easy.core.Client;
 import com.easy.core.message.ServerToConsumerMessage;
 import com.easy.core.message.TransmissionMessage;
+import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
 
 public class Consumer extends Client {
 
     static int passedTimeSecond = 30;
-    public ConsumerGroup group;
 
+    public String consumerName;
+    public ConsumerGroup group;
     public LocalDateTime lastResponseTime;
+
+    private Channel channel;
+    public Consumer(String consumerName, ConsumerGroup group,Channel channel) {
+        this.consumerName = consumerName;
+        this.group = group;
+        this.channel = channel;
+    }
 
     public Boolean isAlive() {
         final LocalDateTime now = LocalDateTime.now();
@@ -29,8 +38,8 @@ public class Consumer extends Client {
      * 立刻发送消息
      * @param transmissionMessage
      */
-    public void sendImmediately(String topicName,TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(topicName,transmissionMessage);
+    public void sendImmediately(TransmissionMessage transmissionMessage) {
+        getCurrentMessage().putMessage(transmissionMessage);
         doSend();
     }
 
@@ -48,8 +57,8 @@ public class Consumer extends Client {
      *
      * @param transmissionMessage
      */
-    public synchronized void putMessage(String topicName,TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(topicName,transmissionMessage);
+    public synchronized void putMessage(TransmissionMessage transmissionMessage) {
+        getCurrentMessage().putMessage(transmissionMessage);
         if (needToSend()) {
             doSend();
         }
@@ -58,13 +67,15 @@ public class Consumer extends Client {
     /**
      * 马上发送当前要发送的消息
      */
-    public synchronized void doSend() {
+    private synchronized void doSend() {
 
         if (currentMessage == null) {
             return;
         }
-        System.out.println(currentMessage);
-        //todo send currentMessage
+        channel.writeAndFlush(currentMessage);
+        currentMessage = null;
+
+
 
     }
 

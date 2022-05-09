@@ -1,34 +1,33 @@
 package com.easy.core.message;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+
 import java.io.Serializable;
 import java.util.Set;
-
+@Getter
+@Setter
+@ToString
 public class ConsumerInitMessage implements Serializable {
-    public ConsumerInitMessage(String consumerGroupName, Set<String> listenedTopics) {
-        this.consumerGroupName = consumerGroupName;
-        this.listenedTopics = listenedTopics;
-    }
 
-    public ConsumerInitMessage() {
+    private static final long serialVersionUID = 1L;
+
+
+    String consumerGroupName;
+    String consumerName;
+    Set<String> listenedTopics;
+
+
+    public ConsumerInitMessage(String consumerGroupName, String consumerName, Set<String> listenedTopics) {
+        this.consumerGroupName = consumerGroupName;
+        this.consumerName = consumerName;
+        this.listenedTopics = listenedTopics;
     }
 
     public String getConsumerGroupName() {
         return consumerGroupName;
     }
 
-    public void setConsumerGroupName(String consumerGroupName) {
-        this.consumerGroupName = consumerGroupName;
-    }
 
-    public Set<String> getListenedTopics() {
-        return listenedTopics;
-    }
-
-    public void setListenedTopics(Set<String> listenedTopics) {
-        this.listenedTopics = listenedTopics;
-    }
-
-    private static final long serialVersionUID = 1L;
-    String consumerGroupName;
-    Set<String> listenedTopics;
 }

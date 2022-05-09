@@ -1,34 +1,32 @@
 package com.easy.server.Handler
 
 
-import io.netty.channel.ChannelHandler.Sharable
-import com.easy.server.EasyServer
-import io.netty.channel.SimpleChannelInboundHandler
-import com.easy.core.message.ProducerToServerMessage
-import java.net.InetSocketAddress
-import kotlin.Throws
-import io.netty.channel.ChannelHandlerContext
-import com.easy.core.message.ProducerToServerMessageUnit
-import java.util.concurrent.ConcurrentHashMap
-import com.easy.core.entity.Topic
 import com.easy.core.entity.MessageId
+import com.easy.core.entity.Topic
+
+import com.easy.core.message.ProducerToServerMessage
 import com.easy.core.message.TransmissionMessage
+import com.easy.server.EasyServer
+import io.netty.channel.ChannelHandler.Sharable
+import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.SimpleChannelInboundHandler
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
-import java.lang.Exception
+import java.net.InetSocketAddress
 import java.net.SocketAddress
+
 
 @Service
 @Sharable
 class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
     SimpleChannelInboundHandler<ProducerToServerMessage>() {
-    private fun getProducerNameByAddress(address: SocketAddress): String {
+
+    fun getProducerNameByAddress(address: SocketAddress): String? {
         val address1 = address as InetSocketAddress
         return "producer: " + address1.hostString
     }
-
     @Throws(Exception::class)
     override fun channelRead0(
         channelHandlerContext: ChannelHandlerContext,
@@ -58,9 +56,9 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
                 }
 
 
-                val transmissionMessage = server.localPersistenceProvider.save(
-                    topicName, messageId, messageUnit.data
-                )
+                val transmissionMessage = TransmissionMessage(messageId, messageUnit.data, messageUnit.dataClass,topicName)
+
+                server.localPersistenceProvider.save(transmissionMessage)
 
                 topic.putMessage(transmissionMessage)
 
