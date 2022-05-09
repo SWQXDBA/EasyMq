@@ -1,7 +1,7 @@
 package com.easy.core.entity;
 
 import com.easy.core.message.TransmissionMessage;
-import com.easy.server.EasyServer;
+
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,7 +15,7 @@ public class Topic {
 
         logicQueues.add(new MessageQueue(this));
     }
-    EasyServer easyServer;
+
     String name;
     List<MessageQueue> logicQueues = new ArrayList<>();
     HashMap<String, ConsumerGroup> consumerGroups = new HashMap<>();

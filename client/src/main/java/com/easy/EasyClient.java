@@ -34,6 +34,7 @@ public class EasyClient {
     AtomicLong idGenerator = new AtomicLong();
 
     MessageRouter messageRouter = new MessageRouter();
+
     ConnectActiveHandler connectActiveHandler ;
 
     /**
