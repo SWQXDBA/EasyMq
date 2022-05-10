@@ -17,11 +17,11 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.util.Scanner;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 
 public class EasyClient {
-
 
 
     private final int port;
@@ -35,19 +35,20 @@ public class EasyClient {
 
     MessageRouter messageRouter = new MessageRouter();
 
-    ConnectActiveHandler connectActiveHandler ;
+    ConnectActiveHandler connectActiveHandler;
+
+    volatile ProducerToServerMessage currentMessageCache = new ProducerToServerMessage();
 
     /**
-     *
-     * @param port 要连接的服务器端口
-     * @param host 服务器host如127.0.0.1
-     * @param groupName 消费者组名 一条消息只会被消费者组中的某一个消费者消费到
+     * @param port         要连接的服务器端口
+     * @param host         服务器host如127.0.0.1
+     * @param groupName    消费者组名 一条消息只会被消费者组中的某一个消费者消费到
      * @param consumerName 这个消费者的名字，不同消费者组的消费者可以重名，因为内部会把groupName和consumerName进行一个拼接
      */
-    public EasyClient(int port, String host,String groupName,String consumerName) {
+    public EasyClient(int port, String host, String groupName, String consumerName) {
         this.port = port;
         this.host = host;
-        connectActiveHandler = new ConnectActiveHandler(groupName,consumerName);
+        connectActiveHandler = new ConnectActiveHandler(groupName, consumerName);
     }
 
     public void sendToTopic(Object message, String topicName) {
@@ -63,14 +64,17 @@ public class EasyClient {
             System.out.println("channelFuture == null!!!");
             return;
         }
-        ProducerToServerMessage producerToServerMessage = new ProducerToServerMessage();
+
         final ProducerToServerMessageUnit unit =
-                new ProducerToServerMessageUnit(idGenerator.getAndIncrement(), bytes, topicName,message.getClass());
-        producerToServerMessage.messages.add(unit);
-        channelFuture.channel().writeAndFlush(producerToServerMessage);
+                new ProducerToServerMessageUnit(idGenerator.getAndIncrement()+"", bytes, topicName, message.getClass());
+
+        currentMessageCache.messages.add(unit);
+
+
+        // channelFuture.channel().writeAndFlush(currentMessageCache);
     }
 
-    public void addListener( EasyListener<?> listener) {
+    public void addListener(EasyListener<?> listener) {
         System.out.println(listener);
         String topicName = listener.topicName;
         messageRouter.addListener(topicName, listener);
@@ -79,6 +83,8 @@ public class EasyClient {
 
     public void run() {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
+        EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newSingleThreadExecutor());
+
         try {
             Bootstrap b = new Bootstrap();
             b.group(workerGroup);
@@ -88,7 +94,7 @@ public class EasyClient {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline().addLast(new ObjectDecoder(Integer.MAX_VALUE,
-                            ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
+                                    ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
                             .addLast(new ObjectEncoder())
                             .addLast(connectActiveHandler)
                             .addLast(messageRouter);
@@ -102,20 +108,34 @@ public class EasyClient {
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
                     System.out.println("已连接 " + channelFuture.channel().remoteAddress());
 
-                    Scanner scanner = new Scanner(System.in);
+              /*      Scanner scanner = new Scanner(System.in);
                     Thread thread = new Thread(() -> {
                         while (scanner.hasNext()) {
                             final String str = scanner.nextLine();
                             sendToTopic(str, "topic");
                         }
                     });
-                    thread.start();
+                    thread.start();*/
+
 
                 }
             });
+            defaultEventLoop.execute(() -> {
+                while (true) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
 
+                    final ProducerToServerMessage currentMessage = this.currentMessageCache;
+                    this.currentMessageCache = new ProducerToServerMessage();
+                    channelFuture.channel().writeAndFlush(currentMessage);
+
+                }
+            });
             channelFuture.channel().closeFuture().sync();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         } finally {
             workerGroup.shutdownGracefully();

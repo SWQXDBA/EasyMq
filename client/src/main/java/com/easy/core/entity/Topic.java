@@ -12,8 +12,8 @@ public class Topic {
         messageMetaInfo = new MessageMetaInfo();
         messageMetaInfo.topicName = name;
         this.name = name;
-
         logicQueues.add(new MessageQueue(this));
+
     }
 
     String name;
@@ -97,7 +97,6 @@ public class Topic {
         sendMessage(messages.get(messageId));
     }
     public void sendMessage(TransmissionMessage message){
-
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
             sendMessageToGroup(consumerGroup,message);
         }

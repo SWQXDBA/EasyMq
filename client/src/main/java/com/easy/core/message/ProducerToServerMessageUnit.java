@@ -1,14 +1,27 @@
 package com.easy.core.message;
 
 import java.io.Serializable;
-import java.util.Arrays;
 
 public class ProducerToServerMessageUnit implements Serializable {
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ProducerToServerMessageUnit)) return false;
+
+        ProducerToServerMessageUnit unit = (ProducerToServerMessageUnit) o;
+
+        return messageProductionId != null ? messageProductionId.equals(unit.messageProductionId) : unit.messageProductionId == null;
+    }
+
+    @Override
+    public int hashCode() {
+        return messageProductionId != null ? messageProductionId.hashCode() : 0;
+    }
 
     private static final long serialVersionUID = 1L;
-    public ProducerToServerMessageUnit(Long messageProductionNumber, byte[] data, String topicName,Class<?> dataClass) {
-        this.messageProductionNumber = messageProductionNumber;
+    public ProducerToServerMessageUnit(String messageProductionNumber, byte[] data, String topicName,Class<?> dataClass) {
+        this.messageProductionId = messageProductionNumber;
         this.data = data;
         this.topicName = topicName;
         this.dataClass = dataClass;
@@ -17,7 +30,7 @@ public class ProducerToServerMessageUnit implements Serializable {
     /**
      * 由每个producer自己维护的一个id 供服务端拿来避免重复接收 使用
      */
-    public  Long messageProductionNumber;
+    public  String messageProductionId;
 
     public byte[] data;
 
@@ -28,34 +41,13 @@ public class ProducerToServerMessageUnit implements Serializable {
      */
     Class<?> dataClass;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof ProducerToServerMessageUnit)) return false;
 
-        ProducerToServerMessageUnit unit = (ProducerToServerMessageUnit) o;
-
-        if (messageProductionNumber != null ? !messageProductionNumber.equals(unit.messageProductionNumber) : unit.messageProductionNumber != null)
-            return false;
-        if (!Arrays.equals(data, unit.data)) return false;
-        return topicName != null ? topicName.equals(unit.topicName) : unit.topicName == null;
+    public String getMessageProductionId() {
+        return messageProductionId;
     }
 
-    @Override
-    public int hashCode() {
-        int result = messageProductionNumber != null ? messageProductionNumber.hashCode() : 0;
-        result = 31 * result + Arrays.hashCode(data);
-        result = 31 * result + (topicName != null ? topicName.hashCode() : 0);
-        return result;
-    }
-
-
-    public Long getMessageProductionNumber() {
-        return messageProductionNumber;
-    }
-
-    public void setMessageProductionNumber(Long messageProductionNumber) {
-        this.messageProductionNumber = messageProductionNumber;
+    public void setMessageProductionId(String messageProductionId) {
+        this.messageProductionId = messageProductionId;
     }
 
     public byte[] getData() {

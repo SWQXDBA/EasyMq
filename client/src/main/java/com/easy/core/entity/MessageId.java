@@ -8,7 +8,7 @@ public class MessageId implements Serializable {
 
     String topicName;
     String producerName;
-    long uid;
+    String uid;
 
     @Override
     public boolean equals(Object o) {
@@ -23,7 +23,7 @@ public class MessageId implements Serializable {
         return Objects.hash(topicName, producerName, uid);
     }
 
-    public MessageId(String topicName, String producerName, long uid) {
+    public MessageId(String topicName, String producerName, String uid) {
         this.topicName = topicName;
         this.producerName = producerName;
         this.uid = uid;
@@ -48,11 +48,11 @@ public class MessageId implements Serializable {
         this.producerName = producerName;
     }
 
-    public long getUid() {
+    public String getUid() {
         return uid;
     }
 
-    public void setUid(long uid) {
+    public void setUid(String uid) {
         this.uid = uid;
     }
 }

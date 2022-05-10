@@ -42,6 +42,7 @@ public class MessageQueue {
     private void work(){
         while(true){
             final TransmissionMessage message = take();
+            System.out.println("堆积消息:"+queue.size());
             topic.consumingMessages.add(message.id);
             topic.sendMessage(message);
         }

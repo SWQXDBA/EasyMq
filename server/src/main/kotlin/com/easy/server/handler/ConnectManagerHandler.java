@@ -1,4 +1,4 @@
-package com.easy.server.Handler;
+package com.easy.server.handler;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;

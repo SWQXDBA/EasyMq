@@ -40,13 +40,14 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
 
                 //生成messageId
                 val messageId = MessageId()
-                messageId.uid = topic.nextId
+
                 messageId.topicName = topicName
                 var producerName = producerToServerMessage.producerName
                 if (producerName == null) {
                     producerName = getProducerNameByAddress(channelHandlerContext.channel().remoteAddress())
                 }
                 messageId.producerName = producerName
+                messageId.uid = producerName+"=> "+messageUnit.messageProductionId
 
                 //先确认一下是否收到过
                 // 但是确认和后面的插入不是原子的 可能会在确认完成后被其他线程插入，导致持久化了两次，

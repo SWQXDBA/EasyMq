@@ -4,9 +4,11 @@ package com.easy.server
 import com.easy.core.entity.ConsumerGroup
 import com.easy.core.entity.Topic
 import com.easy.core.message.TransmissionMessage
-import com.easy.server.Handler.ConsumerInitMessageHandler
+
+
 import com.easy.server.Handler.ProducerToServerMessageHandler
 import com.easy.server.dao.LocalPersistenceProvider
+import com.easy.server.handler.ConsumerInitMessageHandler
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.DefaultEventLoop
@@ -48,7 +50,7 @@ class EasyServer(
                 .childHandler(object : ChannelInitializer<SocketChannel>() {
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()
-                            .addLast(LoggingHandler(LogLevel.INFO))
+                            //.addLast(LoggingHandler(LogLevel.INFO))
                             .addLast(
                                 ObjectDecoder(
                                     Int.MAX_VALUE,

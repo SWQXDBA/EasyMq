@@ -6,14 +6,20 @@ import com.easy.core.message.TransmissionMessage;
 import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 
 public class Consumer extends Client {
 
     static int passedTimeSecond = 30;
 
+    static int longestSendIntervalMills = 100;
+
+    public LocalDateTime lastSendTime = LocalDateTime.now();
+
     public String consumerName;
     public ConsumerGroup group;
-    public LocalDateTime lastResponseTime;
+    public LocalDateTime lastResponseTime = LocalDateTime.now();
 
     private Channel channel;
     public Consumer(String consumerName, ConsumerGroup group,Channel channel) {
@@ -31,7 +37,7 @@ public class Consumer extends Client {
     /**
      * 如果每有一条消息 就进行一次发送未免太浪费了 这里可以积攒一些消息再进行发送，同时可以塞入一些其他信息。
      */
-    private transient volatile ServerToConsumerMessage currentMessage;
+    private transient volatile ServerToConsumerMessage currentMessage = new ServerToConsumerMessage();
 
 
     /**
@@ -39,7 +45,7 @@ public class Consumer extends Client {
      * @param transmissionMessage
      */
     public void sendImmediately(TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(transmissionMessage);
+        currentMessage.putMessage(transmissionMessage);
         doSend();
     }
 
@@ -49,6 +55,11 @@ public class Consumer extends Client {
      * @return
      */
     private boolean needToSend() {
+
+        LocalDateTime now = LocalDateTime.now();
+        if(true||lastSendTime.plus(longestSendIntervalMills, ChronoUnit.MILLIS).isBefore(now)){
+            return true;
+        }
         return true;
     }
 
@@ -57,9 +68,9 @@ public class Consumer extends Client {
      *
      * @param transmissionMessage
      */
-    public synchronized void putMessage(TransmissionMessage transmissionMessage) {
-        getCurrentMessage().putMessage(transmissionMessage);
-        if (needToSend()) {
+    public  void putMessage(TransmissionMessage transmissionMessage) {
+        currentMessage.putMessage(transmissionMessage);
+        if (true) {
             doSend();
         }
     }
@@ -67,24 +78,13 @@ public class Consumer extends Client {
     /**
      * 马上发送当前要发送的消息
      */
-    private synchronized void doSend() {
-
-        if (currentMessage == null) {
-            return;
-        }
+    private void doSend() {
+        final ServerToConsumerMessage currentMessage = this.currentMessage;
+        this.currentMessage = new ServerToConsumerMessage();
         channel.writeAndFlush(currentMessage);
-        currentMessage = null;
-
-
-
     }
 
-    private synchronized ServerToConsumerMessage getCurrentMessage() {
-        if (currentMessage == null) {
-            currentMessage = new ServerToConsumerMessage();
-        }
-        return currentMessage;
-    }
+
 
 
 }
