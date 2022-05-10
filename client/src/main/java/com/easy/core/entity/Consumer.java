@@ -7,6 +7,8 @@ import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Consumer extends Client {
 
@@ -20,13 +22,16 @@ public class Consumer extends Client {
     public ConsumerGroup group;
     public LocalDateTime lastResponseTime = LocalDateTime.now();
 
+    final ExecutorService service = Executors.newSingleThreadExecutor();
+
     private Channel channel;
 
     public Consumer(String consumerName, ConsumerGroup group, Channel channel) {
         this.consumerName = consumerName;
         this.group = group;
         this.channel = channel;
-        Thread thread = new Thread(() -> {
+
+        service.execute(() -> {
             while (true) {
                 try {
                     Thread.sleep(longestSendIntervalMills);
@@ -37,7 +42,7 @@ public class Consumer extends Client {
             }
 
         });
-        thread.start();
+
     }
 
     public Boolean isAlive() {
