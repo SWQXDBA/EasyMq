@@ -1,4 +1,4 @@
-package com.easy.handler;
+package com.easy.clientHandler;
 
 import com.easy.core.message.ConsumerInitMessage;
 import io.netty.channel.ChannelHandler;

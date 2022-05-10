@@ -1,4 +1,4 @@
-package com.easy.handler;
+package com.easy.clientHandler;
 
 import com.easy.EasyListener;
 import com.easy.core.message.ServerToConsumerMessage;

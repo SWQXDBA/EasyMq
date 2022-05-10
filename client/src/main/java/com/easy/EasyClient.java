@@ -1,10 +1,12 @@
 package com.easy;
 
 
+import com.easy.clientHandler.ConnectActiveHandler;
+import com.easy.clientHandler.MessageRouter;
+import com.easy.core.entity.MessageId;
+import com.easy.core.message.ConsumerToServerMessage;
 import com.easy.core.message.ProducerToServerMessage;
 import com.easy.core.message.ProducerToServerMessageUnit;
-import com.easy.handler.ConnectActiveHandler;
-import com.easy.handler.MessageRouter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.bootstrap.Bootstrap;
@@ -16,7 +18,7 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
-import java.util.Scanner;
+import java.time.LocalDateTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -27,7 +29,8 @@ public class EasyClient {
     private final int port;
 
     private final String host;
-    private ChannelFuture channelFuture;
+
+    private ChannelFuture channel;
 
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -37,7 +40,10 @@ public class EasyClient {
 
     ConnectActiveHandler connectActiveHandler;
 
+    String groupName;
+
     volatile ProducerToServerMessage currentMessageCache = new ProducerToServerMessage();
+    volatile ConsumerToServerMessage consumerToServerMessage;
 
     /**
      * @param port         要连接的服务器端口
@@ -48,7 +54,9 @@ public class EasyClient {
     public EasyClient(int port, String host, String groupName, String consumerName) {
         this.port = port;
         this.host = host;
+        this.groupName = groupName;
         connectActiveHandler = new ConnectActiveHandler(groupName, consumerName);
+        consumerToServerMessage = new ConsumerToServerMessage(groupName);
     }
 
     public void sendToTopic(Object message, String topicName) {
@@ -60,16 +68,18 @@ public class EasyClient {
             return;
         }
 
-        if (channelFuture == null) {
+        LocalDateTime now = LocalDateTime.now();
+        final ProducerToServerMessageUnit unit =
+                new ProducerToServerMessageUnit(now.getSecond() + "s " + idGenerator.getAndIncrement() + "", bytes, topicName, message.getClass());
+
+        if (channel == null) {
             System.out.println("channelFuture == null!!!");
+            currentMessageCache.messages.add(unit);
             return;
         }
 
-        final ProducerToServerMessageUnit unit =
-                new ProducerToServerMessageUnit(idGenerator.getAndIncrement()+"", bytes, topicName, message.getClass());
 
         currentMessageCache.messages.add(unit);
-
 
         // channelFuture.channel().writeAndFlush(currentMessageCache);
     }
@@ -79,6 +89,10 @@ public class EasyClient {
         String topicName = listener.topicName;
         messageRouter.addListener(topicName, listener);
         connectActiveHandler.listenedTopics.add(topicName);
+    }
+
+    public void confirmationResponse(MessageId messageId) {
+        consumerToServerMessage.confirmationResponse.add(messageId);
     }
 
     public void run() {
@@ -93,7 +107,9 @@ public class EasyClient {
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast(new ObjectDecoder(Integer.MAX_VALUE,
+                    ch.pipeline()
+                            //    .addLast(new SpeedTestHandler())
+                            .addLast(new ObjectDecoder(Integer.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
                             .addLast(new ObjectEncoder())
                             .addLast(connectActiveHandler)
@@ -101,23 +117,13 @@ public class EasyClient {
 
                 }
             });
-
+            ChannelFuture channelFuture;
             channelFuture = b.connect(host, port);
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
                     System.out.println("已连接 " + channelFuture.channel().remoteAddress());
-
-              /*      Scanner scanner = new Scanner(System.in);
-                    Thread thread = new Thread(() -> {
-                        while (scanner.hasNext()) {
-                            final String str = scanner.nextLine();
-                            sendToTopic(str, "topic");
-                        }
-                    });
-                    thread.start();*/
-
-
+                    channel = channelFuture;
                 }
             });
             defaultEventLoop.execute(() -> {
@@ -128,9 +134,20 @@ public class EasyClient {
                         e.printStackTrace();
                     }
 
-                    final ProducerToServerMessage currentMessage = this.currentMessageCache;
-                    this.currentMessageCache = new ProducerToServerMessage();
-                    channelFuture.channel().writeAndFlush(currentMessage);
+                    //发送生产的消息
+                    if (!this.currentMessageCache.messages.isEmpty()) {
+
+                        final ProducerToServerMessage currentMessage = this.currentMessageCache;
+                        this.currentMessageCache = new ProducerToServerMessage();
+                        channelFuture.channel().writeAndFlush(currentMessage);
+                    }
+                    //回应收到的消息id
+                    if (!this.consumerToServerMessage.confirmationResponse.isEmpty()) {
+                        final ConsumerToServerMessage message = this.consumerToServerMessage;
+                        this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
+                        channelFuture.channel().writeAndFlush(message);
+                    }
+
 
                 }
             });

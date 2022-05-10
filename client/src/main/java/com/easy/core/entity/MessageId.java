@@ -15,7 +15,7 @@ public class MessageId implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MessageId messageId = (MessageId) o;
-        return uid == messageId.uid && Objects.equals(topicName, messageId.topicName) && Objects.equals(producerName, messageId.producerName);
+        return uid.equals(messageId.uid) && Objects.equals(topicName, messageId.topicName) && Objects.equals(producerName, messageId.producerName);
     }
 
     @Override

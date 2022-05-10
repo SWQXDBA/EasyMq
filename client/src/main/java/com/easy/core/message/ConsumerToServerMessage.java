@@ -1,30 +1,17 @@
 package com.easy.core.message;
 
-import com.easy.core.enums.ClientMessageType;
-import com.easy.core.enums.CodeType;
+import com.easy.core.entity.MessageId;
 
+import java.io.Serializable;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class ConsumerToServerMessage {
-    Long id;
-    /**
-     * 这个消息的作用
-     */
-    ClientMessageType messageType;
-    /**
-     * 序列化方式
-     */
-    CodeType codeType;
+public class ConsumerToServerMessage implements Serializable {
+    private static final long serialVersionUID = 1L;
+    public Set<MessageId> confirmationResponse = ConcurrentHashMap.newKeySet();
+    public String consumerGroupName;
 
-    /**
-     * 请求的消息数量
-     */
-    Integer requestMessageCount;
-
-    /**
-     * 告诉服务器 这些消息已被收到
-     */
-    Set<Long> receivedIds;
-
-
+    public ConsumerToServerMessage(String consumerGroupName) {
+        this.consumerGroupName = consumerGroupName;
+    }
 }

@@ -1,10 +1,7 @@
 package com.easy.core.message;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -12,16 +9,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ServerToConsumerMessage implements Serializable {
     private static final long serialVersionUID = 1L;
-    private List<TransmissionMessage> messages = new LinkedList<>();
+    private Collection<TransmissionMessage> messages = ConcurrentHashMap.newKeySet(8);
 
-    public List<TransmissionMessage> getMessages() {
+    public Collection<TransmissionMessage> getMessages() {
         return messages;
     }
 
     public ServerToConsumerMessage() {
     }
 
-    public void setMessages(List<TransmissionMessage> messages) {
+    public void setMessages(Collection<TransmissionMessage> messages) {
         this.messages = messages;
     }
 

@@ -1,4 +1,4 @@
-package com.easy.server.handler;
+package com.easy.server.serverHandler;
 
 import com.easy.core.entity.ConsumerGroup;
 import com.easy.core.entity.Topic;
