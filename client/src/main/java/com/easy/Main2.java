@@ -8,16 +8,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * @author SWQXDBA
- */
-public class Main {
-
+public class Main2 {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
         AtomicLong sentMessageCount = new AtomicLong();
-        EasyClient client = new EasyClient(8080, "localhost", "group1", "消费者1");
+        EasyClient client = new EasyClient(8080, "localhost", "group2", "消费者1");
         client.addListener(new EasyListener<String>("topic") {
             @Override
             public void handle(MessageId messageId, String message) {
@@ -26,9 +22,7 @@ public class Main {
                 //   System.out.println(messageId.getUid());
             }
         });
-
-
-        final ExecutorService service = Executors.newFixedThreadPool(1000);
+        final ExecutorService service = Executors.newFixedThreadPool(10);
         service.execute(() -> {
             while (true) {
                 long last = atomicLong.get();
@@ -41,32 +35,6 @@ public class Main {
             }
         });
 
-
-        AtomicBoolean stop = new AtomicBoolean();
-        service.execute(() -> {
-            while (!stop.get()){
-
-                for (int i = 0; i < 100000; i++) {
-                    service.execute(() -> {
-                        sentMessageCount.getAndIncrement();
-                        client.sendToTopic("str", "topic");
-                    });
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
-
-        });
-
-        service.execute(()->{
-                Scanner scanner = new Scanner(System.in);
-            scanner.nextLine();
-            stop.set(true);
-        });
 
         client.run();
     }

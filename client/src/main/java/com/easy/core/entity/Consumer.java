@@ -34,13 +34,12 @@ public class Consumer extends Client {
         service.execute(() -> {
             while (true) {
                 try {
-                    Thread.sleep(longestSendIntervalMills);
+                    Thread.sleep(longestSendIntervalMills*5);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 doSend();
             }
-
         });
 
     }
@@ -104,8 +103,9 @@ public class Consumer extends Client {
             }
             sendMessage = this.currentMessage;
             this.currentMessage = new ServerToConsumerMessage();
-
         }
+
+
         channel.writeAndFlush(sendMessage);
         lastSendTime = LocalDateTime.now();
 

@@ -1,14 +1,15 @@
 package com.easy.server
 
 
+import com.easy.core.entity.Consumer
 import com.easy.core.entity.ConsumerGroup
 import com.easy.core.entity.Topic
-
-
-import com.easy.server.serverHandler.ProducerToServerMessageHandler
 import com.easy.server.dao.LocalPersistenceProvider
 import com.easy.server.serverHandler.ConsumerInitMessageHandler
 import com.easy.server.serverHandler.ConsumerToServerMessageHandler
+import com.easy.server.serverHandler.InboundSpeedTestHandler
+import com.easy.server.serverHandler.OutboundSpeedTestHandler
+import com.easy.server.serverHandler.ProducerToServerMessageHandler
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.ChannelInitializer
 import io.netty.channel.DefaultEventLoop
@@ -18,8 +19,6 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.serialization.ClassResolvers
 import io.netty.handler.codec.serialization.ObjectDecoder
 import io.netty.handler.codec.serialization.ObjectEncoder
-import io.netty.handler.logging.LogLevel
-import io.netty.handler.logging.LoggingHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
@@ -67,6 +66,7 @@ class EasyServer(
 
             val channelFuture = serverBootstrap.bind(port)
             channelFuture.sync()
+
 
             channelFuture.channel().closeFuture().sync()
 

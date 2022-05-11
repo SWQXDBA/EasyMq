@@ -95,7 +95,6 @@ public class Topic {
         //记录未响应状态
         final Set<ConsumerGroup> consumerGroups = messageMetaInfo.unconsumedGroups.get(transmissionMessage.id);
         consumerGroups.add(consumerGroup);
-
         consumer.putMessage(transmissionMessage);
 
 
