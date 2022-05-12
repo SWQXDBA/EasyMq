@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ConsumerGroup {
     String groupName;
-    ConcurrentHashMap<String,Consumer> consumers = new ConcurrentHashMap<>();
+    ConcurrentHashMap<String, Consumer> consumers = new ConcurrentHashMap<>();
 
     @Override
     public boolean equals(Object o) {
@@ -26,18 +26,27 @@ public class ConsumerGroup {
     public ConsumerGroup(String groupName) {
         this.groupName = groupName;
     }
-    public void addConsumer(ConsumerInitMessage  message, Channel channel){
-        Consumer consumer = new Consumer(message.getConsumerName(),this,channel);
-        consumers.put(consumer.consumerName,consumer);
+
+    public void addOrUpdateConsumer(ConsumerInitMessage message, Channel channel) {
+        if (consumers.containsKey(message.getConsumerName())) {
+            final Consumer consumer = consumers.get(message.getConsumerName());
+            consumer.resetChannel(channel);
+
+        } else {
+            Consumer consumer = new Consumer(message.getConsumerName(), this, channel);
+            consumers.put(consumer.consumerName, consumer);
+        }
+
     }
 
     /**
      * 获取下一个消费者
+     *
      * @return
      */
-    public Consumer nextConsumer(){
-        for (Consumer value : consumers.values()) {
-            return value;
+    public Consumer nextConsumer() {
+        for (Consumer consumer : consumers.values()) {
+            return consumer;
         }
         return null;
     }

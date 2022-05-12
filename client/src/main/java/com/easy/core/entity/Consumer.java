@@ -6,7 +6,6 @@ import com.easy.core.message.TransmissionMessage;
 import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,7 +15,7 @@ public class Consumer extends Client {
 
     static int longestSendIntervalMills = 100;
 
-    public LocalDateTime lastSendTime = LocalDateTime.now();
+
 
     public String consumerName;
     public ConsumerGroup group;
@@ -26,6 +25,13 @@ public class Consumer extends Client {
 
     private Channel channel;
 
+    public void resetChannel( Channel channel){
+        this.channel = channel;
+    }
+    public boolean isActive(){
+        return channel.isActive();
+    }
+
     public Consumer(String consumerName, ConsumerGroup group, Channel channel) {
         this.consumerName = consumerName;
         this.group = group;
@@ -34,21 +40,17 @@ public class Consumer extends Client {
         service.execute(() -> {
             while (true) {
                 try {
-                    Thread.sleep(longestSendIntervalMills*5);
+                    Thread.sleep(longestSendIntervalMills);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                doSend();
+                checkAndSend();
             }
+
         });
 
     }
 
-    public Boolean isAlive() {
-        final LocalDateTime now = LocalDateTime.now();
-        final LocalDateTime expirationTime = lastResponseTime.plusSeconds(passedTimeSecond);
-        return now.isBefore(expirationTime);
-    }
 
     /**
      * 如果每有一条消息 就进行一次发送未免太浪费了 这里可以积攒一些消息再进行发送
@@ -66,18 +68,7 @@ public class Consumer extends Client {
         doSend();
     }
 
-    /**
-     * 判断当前是否需要发送消息
-     *
-     * @return
-     */
-    private boolean needToSend() {
-        LocalDateTime now = LocalDateTime.now();
-        if (lastSendTime.plus(longestSendIntervalMills, ChronoUnit.MILLIS).isBefore(now)) {
-            return true;
-        }
-        return false;
-    }
+
 
     /**
      * 给这个consumer递送一条消息  但不一定立即发送
@@ -86,7 +77,10 @@ public class Consumer extends Client {
      */
     public void putMessage(TransmissionMessage transmissionMessage) {
         currentMessage.putMessage(transmissionMessage);
-        if (needToSend()) {
+        checkAndSend();
+    }
+    private void checkAndSend(){
+        if (channel.isActive()&&channel.isWritable()) {
             doSend();
         }
     }
@@ -103,11 +97,12 @@ public class Consumer extends Client {
             }
             sendMessage = this.currentMessage;
             this.currentMessage = new ServerToConsumerMessage();
+
         }
-
-
-        channel.writeAndFlush(sendMessage);
-        lastSendTime = LocalDateTime.now();
+        if(channel.isActive()){
+            //注意 在这个过程中 如果说客户端断开连接 那么这一部分消息会丢失掉，需要重新发送给consumerGroup
+            channel.writeAndFlush(sendMessage);
+        }
 
     }
 

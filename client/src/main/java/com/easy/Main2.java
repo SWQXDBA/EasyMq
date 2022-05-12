@@ -2,17 +2,15 @@ package com.easy;
 
 import com.easy.core.entity.MessageId;
 
-import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class Main2 {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
-        AtomicLong sentMessageCount = new AtomicLong();
+
         EasyClient client = new EasyClient(8080, "localhost", "group2", "消费者1");
         client.addListener(new EasyListener<String>("topic") {
             @Override
@@ -31,7 +29,7 @@ public class Main2 {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(atomicLong.get()-last+" "+sentMessageCount);
+                System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage());
             }
         });
 

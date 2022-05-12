@@ -16,14 +16,14 @@ public class Main {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
-        AtomicLong sentMessageCount = new AtomicLong();
         EasyClient client = new EasyClient(8080, "localhost", "group1", "消费者1");
         client.addListener(new EasyListener<String>("topic") {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();
+                System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
                 client.confirmationResponse(messageId);
-                //   System.out.println(messageId.getUid());
+
             }
         });
 
@@ -37,7 +37,7 @@ public class Main {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(atomicLong.get()-last+" "+sentMessageCount);
+              //  System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage());
             }
         });
 
@@ -46,14 +46,15 @@ public class Main {
         service.execute(() -> {
             while (!stop.get()){
 
-                for (int i = 0; i < 100000; i++) {
+                for (int i = 0; i < 1000; i++) {
                     service.execute(() -> {
-                        sentMessageCount.getAndIncrement();
-                        client.sendToTopic("str", "topic");
+                        for (int j = 0; j < 100; j++) {
+                        //    client.sendToTopic("str", "topic");
+                        }
                     });
                 }
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

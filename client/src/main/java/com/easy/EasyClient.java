@@ -30,7 +30,7 @@ public class EasyClient {
 
     private final String host;
 
-    private ChannelFuture channel;
+    private volatile ChannelFuture channel;
 
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -45,6 +45,7 @@ public class EasyClient {
     volatile ProducerToServerMessage currentMessageCache = new ProducerToServerMessage();
     volatile ConsumerToServerMessage consumerToServerMessage;
 
+    AtomicLong sentMessage = new AtomicLong();
     /**
      * @param port         要连接的服务器端口
      * @param host         服务器host如127.0.0.1
@@ -57,6 +58,10 @@ public class EasyClient {
         this.groupName = groupName;
         connectActiveHandler = new ConnectActiveHandler(groupName, consumerName);
         consumerToServerMessage = new ConsumerToServerMessage(groupName);
+    }
+
+    public long getSentMessage(){
+        return sentMessage.get();
     }
 
     public void sendToTopic(Object message, String topicName) {
@@ -72,20 +77,19 @@ public class EasyClient {
         final ProducerToServerMessageUnit unit =
                 new ProducerToServerMessageUnit(now.getSecond() + "s " + idGenerator.getAndIncrement() + "", bytes, topicName, message.getClass());
 
-        if (channel == null) {
-            System.out.println("channelFuture == null!!!");
-            currentMessageCache.messages.add(unit);
+
+        currentMessageCache.messages.add(unit);
+        if(channel==null){
             return;
+        }
+        if(channel.channel().isWritable()){
+            doSend();
         }
 
 
-        currentMessageCache.messages.add(unit);
-
-        // channelFuture.channel().writeAndFlush(currentMessageCache);
     }
 
     public void addListener(EasyListener<?> listener) {
-        System.out.println(listener);
         String topicName = listener.topicName;
         messageRouter.addListener(topicName, listener);
         connectActiveHandler.listenedTopics.add(topicName);
@@ -94,10 +98,26 @@ public class EasyClient {
     public void confirmationResponse(MessageId messageId) {
         consumerToServerMessage.confirmationResponse.add(messageId);
     }
+    private synchronized void doSend(){
+        //发送生产的消息
+        if (!this.currentMessageCache.messages.isEmpty()) {
+            final ProducerToServerMessage currentMessage = this.currentMessageCache;
+            this.currentMessageCache = new ProducerToServerMessage();
+            channel.channel().writeAndFlush(currentMessage);
+            sentMessage.addAndGet(currentMessage.messages.size());
+        }
+        //回应收到的消息id
 
-    public void run() {
+        if (!this.consumerToServerMessage.confirmationResponse.isEmpty()) {
+            final ConsumerToServerMessage message = this.consumerToServerMessage;
+            this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
+            channel.channel().writeAndFlush(message);
+        }
+    }
+
+    private  void connect(){
         EventLoopGroup workerGroup = new NioEventLoopGroup();
-        EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newSingleThreadExecutor());
+
 
         try {
             Bootstrap b = new Bootstrap();
@@ -126,36 +146,42 @@ public class EasyClient {
                     channel = channelFuture;
                 }
             });
-            defaultEventLoop.execute(() -> {
-                while (true) {
-                    try {
-                        Thread.sleep(100);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
 
-                    //发送生产的消息
-                    if (!this.currentMessageCache.messages.isEmpty()) {
-
-                        final ProducerToServerMessage currentMessage = this.currentMessageCache;
-                        this.currentMessageCache = new ProducerToServerMessage();
-                        channelFuture.channel().writeAndFlush(currentMessage);
-                    }
-                    //回应收到的消息id
-                    if (!this.consumerToServerMessage.confirmationResponse.isEmpty()) {
-                        final ConsumerToServerMessage message = this.consumerToServerMessage;
-                        this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
-                        channelFuture.channel().writeAndFlush(message);
-                    }
-
-
-                }
-            });
             channelFuture.channel().closeFuture().sync();
+
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             workerGroup.shutdownGracefully();
+        }
+
+    }
+    public void run() {
+
+        EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newSingleThreadExecutor());
+        defaultEventLoop.execute(() -> {
+            while (true) {
+
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                if(channel==null||!channel.channel().isActive()){
+                    continue;
+                }
+                if(channel.channel().isWritable()){
+                    doSend();
+                }
+            }
+        });
+        while(true){
+            connect();
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 

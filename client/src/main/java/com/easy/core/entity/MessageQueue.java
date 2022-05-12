@@ -6,6 +6,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class MessageQueue {
+    static int queueSize = 10000;
     BlockingQueue<TransmissionMessage> queue = new LinkedBlockingQueue<>();
     Topic topic;
     Thread takeThread;
@@ -45,6 +46,7 @@ public class MessageQueue {
             final TransmissionMessage message = take();
         //    System.out.println(Thread.currentThread().getName() +" 堆积消息:"+queue.size());
             topic.sendMessage(message);
+
         }
     }
 }

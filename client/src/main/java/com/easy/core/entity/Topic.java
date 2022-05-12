@@ -3,8 +3,10 @@ package com.easy.core.entity;
 import com.easy.core.message.TransmissionMessage;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Topic {
@@ -15,10 +17,14 @@ public class Topic {
     HashMap<String, ConsumerGroup> consumerGroups = new HashMap<>();
 
     /**
+     * 检测那些没有回应的消息，如果超过这个时间还没有收到确认应答，则认为丢失了
+     */
+    static final  long messageCheckTimeSeconds = 10;
+    static final long redeliverTimedOutMessageIntervalSeconds = 1;
+    /**
      * 储存一些可丢失的信息，比如消息已经被哪些消费者组消费过
      */
     MessageMetaInfo messageMetaInfo;
-
     /**
      * 这个topic上的所有消息
      */
@@ -36,6 +42,38 @@ public class Topic {
         for (int i = 0; i < 20; i++) {
             logicQueues.add(new MessageQueue(this));
         }
+        Executors.newSingleThreadExecutor().execute(()->{
+            while(true){
+                try {
+                    Thread.sleep(redeliverTimedOutMessageIntervalSeconds*1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                redeliverTimedOutMessage();
+            }
+        });
+
+    }
+
+    /**
+     * 检测哪些消息一直没有回应，考虑重投
+     */
+    public void redeliverTimedOutMessage(){
+
+        for (Map.Entry<MessageId, HashMap<ConsumerGroup, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
+            final HashMap<ConsumerGroup, LocalDateTime> value = messageEntry.getValue();
+            final MessageId messageId = messageEntry.getKey();
+            for (Map.Entry<ConsumerGroup, LocalDateTime> timeEntry : value.entrySet()) {
+
+                final LocalDateTime sendTime = timeEntry.getValue();
+                final LocalDateTime now = LocalDateTime.now();
+                if(sendTime.plus(messageCheckTimeSeconds, ChronoUnit.SECONDS).isBefore(now)){
+                    final ConsumerGroup consumerGroup = timeEntry.getKey();
+                    final TransmissionMessage message = messages.get(messageId);
+                    sendMessageToGroup(consumerGroup,message);
+                }
+            }
+        }
     }
 
     public void registerConsumerGroup(ConsumerGroup consumerGroup){
@@ -44,23 +82,18 @@ public class Topic {
 
     //表示收到了consumer的回应 这个消息已被消费了
     public void responseReceivedMessage(MessageId messageId,String groupName){
-        final Set<ConsumerGroup> unconsumedGroups = messageMetaInfo.unconsumedGroups.get(messageId);
-        if(unconsumedGroups==null){
-            return;
-        }
+        final HashMap<ConsumerGroup, LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
         final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
         if(consumerGroup==null){
             return;
         }
-        unconsumedGroups.remove(consumerGroup);
-        if (unconsumedGroups.isEmpty()){
-            messageMetaInfo.unconsumedGroups.remove(messageId);
-            messageMetaInfo.consumesSendTime.remove(messageId);
+        map.remove(consumerGroup);
+
+        if (map.isEmpty()){
             messages.remove(messageId);
+
         }
-
     }
-
 
     public long getNextId() {
         return queueSelector.incrementAndGet();
@@ -74,7 +107,6 @@ public class Topic {
     public void sendMessage(TransmissionMessage message){
         //记录消息元信息
         messageMetaInfo.consumesSendTime.put(message.id,new HashMap<>());
-        messageMetaInfo.unconsumedGroups.put(message.id,new HashSet<>());
 
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
             sendMessageToGroup(consumerGroup,message);
@@ -83,7 +115,6 @@ public class Topic {
 
 
     private void sendMessageToGroup(ConsumerGroup consumerGroup, TransmissionMessage transmissionMessage) {
-
         final Consumer consumer = consumerGroup.nextConsumer();
         //该组没有消费者
         if(consumer==null){
@@ -92,12 +123,7 @@ public class Topic {
         //记录消息往这一组投递的时间
         final HashMap<ConsumerGroup, LocalDateTime> consumerGroupLocalDateTimeHashMap = messageMetaInfo.consumesSendTime.get(transmissionMessage.id);
         consumerGroupLocalDateTimeHashMap.put(consumerGroup,LocalDateTime.now());
-        //记录未响应状态
-        final Set<ConsumerGroup> consumerGroups = messageMetaInfo.unconsumedGroups.get(transmissionMessage.id);
-        consumerGroups.add(consumerGroup);
         consumer.putMessage(transmissionMessage);
-
-
     }
 
 

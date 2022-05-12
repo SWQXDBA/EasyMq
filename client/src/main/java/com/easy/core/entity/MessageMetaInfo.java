@@ -15,10 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MessageMetaInfo  implements Serializable {
     private static final long serialVersionUID = 1L;
     String topicName;
-    /**
-     * 未消费完成的消费组 用于消息重发
-     */
-   public ConcurrentHashMap<MessageId, Set<ConsumerGroup>> unconsumedGroups = new ConcurrentHashMap<>();
 
     /**
      * 消息发送的大致时间 仅仅是topic的sendToGroup时记录的，消息不一定会被立刻发送

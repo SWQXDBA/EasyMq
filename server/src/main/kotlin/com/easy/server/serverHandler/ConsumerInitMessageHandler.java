@@ -33,7 +33,7 @@ public class ConsumerInitMessageHandler extends SimpleChannelInboundHandler<Cons
             final ConsumerGroup consumerGroup = consumerGroups.computeIfAbsent(msg.getConsumerGroupName(), ConsumerGroup::new);
 
             //加入消费者组
-            consumerGroup.addConsumer(msg,ctx.channel());
+            consumerGroup.addOrUpdateConsumer(msg,ctx.channel());
 
             //确保消费者组在topic中
             topic.registerConsumerGroup(consumerGroup);
