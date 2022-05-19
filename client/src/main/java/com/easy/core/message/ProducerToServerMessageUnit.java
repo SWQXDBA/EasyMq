@@ -37,6 +37,10 @@ public class ProducerToServerMessageUnit implements Serializable {
     public String topicName;
 
     /**
+     * 是否需要接收回调消息
+     */
+    public boolean callBack;
+    /**
      * 发送时 data的类型
      */
     Class<?> dataClass;
