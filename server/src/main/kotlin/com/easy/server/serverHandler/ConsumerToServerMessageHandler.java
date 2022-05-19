@@ -1,9 +1,9 @@
 package com.easy.server.serverHandler;
 
 import com.easy.core.entity.MessageId;
-import com.easy.core.entity.Topic;
 import com.easy.core.message.ConsumerToServerMessage;
 import com.easy.server.EasyServer;
+import com.easy.server.core.entity.Topic;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;

@@ -7,7 +7,11 @@ public class MessageId implements Serializable {
     private static final long serialVersionUID = 1L;
 
     String topicName;
+
     String producerName;
+    /**
+     * 全局唯的id 由消息生产者提供
+     */
     String uid;
 
     @Override

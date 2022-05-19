@@ -1,28 +1,21 @@
-package com.easy;
+package com.easy.core.listener;
 
 import com.easy.core.entity.MessageId;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-/**
- * 注册到Client中 用于处理消息
- *
- * @param
- */
-public abstract class EasyListener<T> {
+public abstract class CallBackListener<T,C> extends EasyListener {
 
-
-
-    public EasyListener(String topicName) {
+    public CallBackListener(String topicName) {
         this.topicName = topicName;
-        this.messageType = getMessageType();
+        getTypes();
     }
 
-    public String topicName;
 
-    public Class<T> messageType;
-    private Class<T> getMessageType() {
+
+    public Class<C> callBackType;
+    private void getTypes() {
         @SuppressWarnings("rawtypes")
         Class clazz = getClass();
 
@@ -32,8 +25,12 @@ public abstract class EasyListener<T> {
             if (t instanceof ParameterizedType) {
                 Type[] args = ((ParameterizedType) t).getActualTypeArguments();
                 if (args[0] instanceof Class) {
-                    return  (Class<T>) args[0];
+                    messageType =  (Class<T>) args[0];
                 }
+                if (args[1] instanceof Class) {
+                    callBackType =  (Class<C>) args[1];
+                }
+                return;
             }
             clazz = clazz.getSuperclass();
         }
@@ -42,9 +39,6 @@ public abstract class EasyListener<T> {
         throw new NullPointerException("类型参数为null");
 
     }
-    public boolean match(Object message) {
-        return message.getClass().equals(getMessageType());
-    }
 
     /**
      * 如何处理消息
@@ -52,7 +46,6 @@ public abstract class EasyListener<T> {
      * @param messageId
      * @param message
      */
-    public abstract void handle(MessageId messageId, T message);
-
+    public abstract C answer(MessageId messageId, T message);
 
 }

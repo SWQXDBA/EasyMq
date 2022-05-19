@@ -35,10 +35,16 @@ public class TransmissionMessage implements Serializable {
 
     String topicName;
 
-    public TransmissionMessage(MessageId id, byte[] data, Class<?> dataClass,String topicName) {
+    /**
+     * 需要回调
+     */
+    boolean needCallBack;
+
+    public TransmissionMessage(MessageId id, byte[] data, Class<?> dataClass,String topicName, boolean callBack) {
         this.id = id;
         this.data = data;
         this.dataClass = dataClass;
         this.topicName = topicName;
+        this.needCallBack = callBack;
     }
 }

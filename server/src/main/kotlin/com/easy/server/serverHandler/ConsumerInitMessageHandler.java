@@ -1,9 +1,10 @@
 package com.easy.server.serverHandler;
 
-import com.easy.core.entity.ConsumerGroup;
-import com.easy.core.entity.Topic;
+
 import com.easy.core.message.ConsumerInitMessage;
-import com.easy.server.*;
+import com.easy.server.EasyServer;
+import com.easy.server.core.entity.ConsumerGroup;
+import com.easy.server.core.entity.Topic;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;

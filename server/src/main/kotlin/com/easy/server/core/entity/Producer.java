@@ -1,4 +1,4 @@
-package com.easy.core.entity;
+package com.easy.server.core.entity;
 
 import com.easy.core.Client;
 

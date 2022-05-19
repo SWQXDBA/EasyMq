@@ -1,4 +1,4 @@
-package com.easy.core.entity;
+package com.easy.server.core.entity;
 
 import com.easy.core.Client;
 import com.easy.core.message.ServerToConsumerMessage;
@@ -24,6 +24,7 @@ public class Consumer extends Client {
     final ExecutorService service = Executors.newSingleThreadExecutor();
 
     private Channel channel;
+
 
     public void resetChannel( Channel channel){
         this.channel = channel;
@@ -59,13 +60,16 @@ public class Consumer extends Client {
 
 
     /**
-     * 立刻发送消息
+     * 立刻发送消息 除非channel.isActive()==false
      *
      * @param transmissionMessage
      */
     public void sendImmediately(TransmissionMessage transmissionMessage) {
         currentMessage.putMessage(transmissionMessage);
-        doSend();
+        if(channel.isActive()){
+            doSend();
+        }
+
     }
 
 
@@ -76,8 +80,12 @@ public class Consumer extends Client {
      * @param transmissionMessage
      */
     public void putMessage(TransmissionMessage transmissionMessage) {
-        currentMessage.putMessage(transmissionMessage);
-        checkAndSend();
+        if(transmissionMessage.isNeedCallBack()){
+            sendImmediately(transmissionMessage);
+        }else{
+            currentMessage.putMessage(transmissionMessage);
+            checkAndSend();
+        }
     }
     private void checkAndSend(){
         if (channel.isActive()&&channel.isWritable()) {

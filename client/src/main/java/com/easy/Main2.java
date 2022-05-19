@@ -1,5 +1,6 @@
 package com.easy;
 
+import com.easy.core.listener.DefaultListener;
 import com.easy.core.entity.MessageId;
 
 import java.util.concurrent.ExecutorService;
@@ -12,7 +13,7 @@ public class Main2 {
 
 
         EasyClient client = new EasyClient(8080, "localhost", "group2", "消费者1");
-        client.addListener(new EasyListener<String>("topic") {
+        client.addListener(new DefaultListener<String>("topic") {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();

@@ -1,8 +1,33 @@
 package com.easy.core.message;
 
+import com.easy.core.entity.MessageId;
+
 import java.io.Serializable;
 
 public class ProducerToServerMessageUnit implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    public MessageId messageId;
+
+    public byte[] data;
+
+    /**
+     * 是否需要接收回调消息
+     */
+    public boolean callBack;
+
+    /**
+     * 发送时 data的类型
+     */
+    Class<?> dataClass;
+
+    public ProducerToServerMessageUnit(MessageId messageProductionNumber, byte[] data,Class<?> dataClass) {
+        this.messageId = messageProductionNumber;
+        this.data = data;
+        this.dataClass = dataClass;
+    }
+
 
     @Override
     public boolean equals(Object o) {
@@ -11,47 +36,20 @@ public class ProducerToServerMessageUnit implements Serializable {
 
         ProducerToServerMessageUnit unit = (ProducerToServerMessageUnit) o;
 
-        return messageProductionId != null ? messageProductionId.equals(unit.messageProductionId) : unit.messageProductionId == null;
+        return messageId != null ? messageId.equals(unit.messageId) : unit.messageId == null;
     }
 
     @Override
     public int hashCode() {
-        return messageProductionId != null ? messageProductionId.hashCode() : 0;
+        return messageId != null ? messageId.hashCode() : 0;
     }
 
-    private static final long serialVersionUID = 1L;
-    public ProducerToServerMessageUnit(String messageProductionNumber, byte[] data, String topicName,Class<?> dataClass) {
-        this.messageProductionId = messageProductionNumber;
-        this.data = data;
-        this.topicName = topicName;
-        this.dataClass = dataClass;
+    public MessageId getMessageId() {
+        return messageId;
     }
 
-    /**
-     * 由每个producer自己维护的一个id 供服务端拿来避免重复接收 使用
-     */
-    public  String messageProductionId;
-
-    public byte[] data;
-
-    public String topicName;
-
-    /**
-     * 是否需要接收回调消息
-     */
-    public boolean callBack;
-    /**
-     * 发送时 data的类型
-     */
-    Class<?> dataClass;
-
-
-    public String getMessageProductionId() {
-        return messageProductionId;
-    }
-
-    public void setMessageProductionId(String messageProductionId) {
-        this.messageProductionId = messageProductionId;
+    public void setMessageId(MessageId messageId) {
+        this.messageId = messageId;
     }
 
     public byte[] getData() {
@@ -62,12 +60,12 @@ public class ProducerToServerMessageUnit implements Serializable {
         this.data = data;
     }
 
-    public String getTopicName() {
-        return topicName;
+    public boolean isCallBack() {
+        return callBack;
     }
 
-    public void setTopicName(String topicName) {
-        this.topicName = topicName;
+    public void setCallBack(boolean callBack) {
+        this.callBack = callBack;
     }
 
     public Class<?> getDataClass() {

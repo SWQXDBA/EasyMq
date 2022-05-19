@@ -1,4 +1,6 @@
-package com.easy.core.entity;
+package com.easy.server.core.entity;
+
+import com.easy.core.entity.MessageId;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

@@ -1,5 +1,6 @@
 package com.easy;
 
+import com.easy.core.listener.DefaultListener;
 import com.easy.core.entity.MessageId;
 
 import java.util.Scanner;
@@ -17,7 +18,7 @@ public class Main {
         AtomicLong atomicLong = new AtomicLong();
 
         EasyClient client = new EasyClient(8080, "localhost", "group1", "消费者1");
-        client.addListener(new EasyListener<String>("topic") {
+        client.addListener(new DefaultListener<String>("topic") {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();

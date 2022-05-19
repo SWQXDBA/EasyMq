@@ -1,5 +1,6 @@
-package com.easy.core.entity;
+package com.easy.server.core.entity;
 
+import com.easy.core.entity.MessageId;
 import com.easy.core.message.TransmissionMessage;
 
 import java.time.LocalDateTime;
@@ -81,7 +82,7 @@ public class Topic {
     }
 
     //表示收到了consumer的回应 这个消息已被消费了
-    public void responseReceivedMessage(MessageId messageId,String groupName){
+    public void responseReceivedMessage(MessageId messageId, String groupName){
         final HashMap<ConsumerGroup, LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
         final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
         if(consumerGroup==null){
