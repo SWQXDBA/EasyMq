@@ -55,7 +55,6 @@ public class EasyClient {
     AtomicLong sentMessage = new AtomicLong();
 
 
-
     String clientName;
 
     /**
@@ -79,6 +78,11 @@ public class EasyClient {
         return sentMessage.get();
     }
 
+    /**
+     * 把消息进行单向发布
+     * @param message
+     * @param topicName
+     */
     public void sendToTopic(Object message, String topicName) {
         ProducerToServerMessageUnit unit;
         try {
@@ -97,7 +101,14 @@ public class EasyClient {
         }
     }
 
-    public <T>void sendAsync(Object message, String topicName,Consumer <T> callBack) {
+    /**
+     * 发送一条消息，并且异步处理回调结果，必须保证不会有多个消费者组返回回调信息
+     * @param message
+     * @param topicName
+     * @param callBack
+     * @param <T>
+     */
+    public <T> void sendAsync(Object message, String topicName, Consumer<T> callBack) {
         ProducerToServerMessageUnit unit;
         try {
             unit = buildMessageUnit(message, topicName);
@@ -106,7 +117,7 @@ public class EasyClient {
             e.printStackTrace();
             return;
         }
-        callBackMessageHandler.addCallBack(unit.getMessageId(),callBack);
+        callBackMessageHandler.addCallBack(unit.getMessageId(), callBack);
         if (channel == null) {
             currentMessageCache.messages.add(unit);
         } else {
@@ -117,39 +128,26 @@ public class EasyClient {
         }
 
     }
+
+    /**
+     * 发送一条消息，并且阻塞等待处理结果，必须保证不会有多个消费者组返回回调信息
+     * @param message
+     * @param topicName
+     * @param <T>
+     * @return
+     */
     public <T> T sendSync(Object message, String topicName) {
-        ProducerToServerMessageUnit unit;
-        try {
-            unit = buildMessageUnit(message, topicName);
-            unit.callBack = true;
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return null;
-        }
-
-
-        Thread thread =  Thread.currentThread();
-        Object[] result =  new Object[1];
-        Consumer <T> callBack = new Consumer<T>() {
-            @Override
-            public void accept(T t) {
-                LockSupport.unpark(thread);
-                result[0] = t;
-            }
-        };
-        callBackMessageHandler.addCallBack(unit.getMessageId(),callBack);
-        if (channel == null) {
-            currentMessageCache.messages.add(unit);
-        } else {
-            //有回调的消息应该被急切地发送
-            ProducerToServerMessage message1 = new ProducerToServerMessage();
-            message1.messages.add(unit);
-            channel.channel().writeAndFlush(message1);
-        }
+        Thread thread = Thread.currentThread();
+        Object[] result = new Object[1];
+        sendAsync(message,topicName, t -> {
+            result[0] = t;
+            LockSupport.unpark(thread);
+        });
         LockSupport.park();
-        return (T)result[0];
+        return (T) result[0];
 
     }
+
     private ProducerToServerMessageUnit buildMessageUnit(Object message, String topicName) throws JsonProcessingException {
         final byte[] bytes;
         bytes = objectMapper.writeValueAsBytes(message);

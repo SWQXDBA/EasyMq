@@ -33,7 +33,7 @@ public class Main3CallBackTest {
                 final String s = scanner.nextLine();
 
                 for (int i = 0; i < 100; i++) {
-                    
+
 
                     final long time1 = LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY);
                     final Person person = client.sendSync(s, "topic");
