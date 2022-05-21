@@ -21,7 +21,9 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
@@ -54,6 +56,10 @@ public class EasyClient {
 
     AtomicLong sentMessage = new AtomicLong();
 
+    EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newFixedThreadPool(19));
+
+
+   ExecutorService asyncSendingExecutor = Executors.newCachedThreadPool();
 
     String clientName;
 
@@ -129,6 +135,19 @@ public class EasyClient {
 
     }
 
+    public <T> Future<T> sendAsync(Object message, String topicName) {
+        return asyncSendingExecutor.submit(() -> {
+            System.out.println("666");
+            Object[] result = new Object[1];
+            Thread thread = Thread.currentThread();
+            sendAsync(message, topicName, t -> {
+                result[0] = t;
+                LockSupport.unpark(thread);
+            });
+            LockSupport.park();
+            return (T) result[0];
+        });
+    }
     /**
      * 发送一条消息，并且阻塞等待处理结果，必须保证不会有多个消费者组返回回调信息
      * @param message
@@ -240,7 +259,7 @@ public class EasyClient {
 
     public void run() {
 
-        EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newSingleThreadExecutor());
+
         defaultEventLoop.execute(() -> {
             while (true) {
                 try {

@@ -6,8 +6,10 @@ import com.easy.core.listener.CallBackListener;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoField;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Main3CallBackTest {
     public static void main(String[] args) {
@@ -34,11 +36,24 @@ public class Main3CallBackTest {
 
                 for (int i = 0; i < 100; i++) {
 
-
                     final long time1 = LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY);
-                    final Person person = client.sendSync(s, "topic");
-                    System.out.println("应答时间"+(person.localDateTime.getLong(ChronoField.MILLI_OF_DAY)-time1));
-                    System.out.println("回调时间:"+(LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY)-time1));
+                    final Future<Person> personFuture = client.sendAsync(s, "topic");
+                    final Person person;
+                    try {
+                        person = personFuture.get();
+                        System.out.println("应答时间"+(person.localDateTime.getLong(ChronoField.MILLI_OF_DAY)-time1));
+                        System.out.println("回调时间:"+(LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY)-time1));
+                    } catch (InterruptedException | ExecutionException e) {
+                        e.printStackTrace();
+                    }
+
+
+
+
+//                    final long time1 = LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY);
+//                    final Person person = client.sendSync(s, "topic");
+//                    System.out.println("应答时间"+(person.localDateTime.getLong(ChronoField.MILLI_OF_DAY)-time1));
+//                    System.out.println("回调时间:"+(LocalDateTime.now().getLong(ChronoField.MILLI_OF_DAY)-time1));
 
 
 
