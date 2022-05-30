@@ -47,7 +47,10 @@ public class Main {
             while (!stop.get()){
                 for (int i = 0; i < 100; i++) {
                     service.execute(() -> {
-                        for (int j = 0; j < 1000; j++) {
+                        if(stop.get()){
+                            return;
+                        }
+                        for (int j = 0; j < 300; j++) {
                             client.sendToTopic("str", "topic");
                         }
                     });

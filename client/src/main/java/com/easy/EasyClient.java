@@ -4,6 +4,7 @@ package com.easy;
 import com.easy.clientHandler.CallBackMessageHandler;
 import com.easy.clientHandler.ConnectActiveHandler;
 import com.easy.clientHandler.ServerToConsumerMessageRouter;
+import com.easy.clientHandler.ServerToProducerMessageHandler;
 import com.easy.core.entity.MessageId;
 import com.easy.core.listener.EasyListener;
 import com.easy.core.message.ConsumerToServerMessage;
@@ -21,6 +22,8 @@ import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -48,6 +51,8 @@ public class EasyClient {
 
     ConnectActiveHandler connectActiveHandler;
 
+    ServerToProducerMessageHandler serverToProducerMessageHandler = new ServerToProducerMessageHandler(this);
+
     String groupName;
 
     volatile ProducerToServerMessage currentMessageCache = new ProducerToServerMessage();
@@ -59,7 +64,9 @@ public class EasyClient {
     EventLoopGroup defaultEventLoop = new DefaultEventLoop(Executors.newFixedThreadPool(19));
 
 
-   ExecutorService asyncSendingExecutor = Executors.newCachedThreadPool();
+    ExecutorService asyncSendingExecutor = Executors.newCachedThreadPool();
+
+    Set<MessageId> nonConfirmedMessages = ConcurrentHashMap.newKeySet(1024);
 
     String clientName;
 
@@ -76,12 +83,14 @@ public class EasyClient {
         connectActiveHandler = new ConnectActiveHandler(groupName, clientName);
         consumerToServerMessage = new ConsumerToServerMessage(groupName);
         this.clientName = clientName;
-
-
     }
 
     public long getSentMessage() {
         return sentMessage.get();
+    }
+
+     void confirmedProducerMessage(MessageId messageId){
+        nonConfirmedMessages.remove(messageId);
     }
 
     /**
@@ -97,7 +106,7 @@ public class EasyClient {
             e.printStackTrace();
             return;
         }
-
+        nonConfirmedMessages.add(unit.messageId);
         currentMessageCache.messages.add(unit);
         if (channel == null) {
             return;
@@ -130,6 +139,7 @@ public class EasyClient {
             //有回调的消息应该被急切地发送
             ProducerToServerMessage message1 = new ProducerToServerMessage();
             message1.messages.add(unit);
+            nonConfirmedMessages.add(unit.messageId);
             channel.channel().writeAndFlush(message1);
         }
 
@@ -232,7 +242,8 @@ public class EasyClient {
                             .addLast(new ObjectEncoder())
                             .addLast(connectActiveHandler)
                             .addLast(serverToConsumerMessageRouter)
-                            .addLast(callBackMessageHandler);
+                            .addLast(callBackMessageHandler)
+                            .addLast(serverToProducerMessageHandler);
 
 
                 }

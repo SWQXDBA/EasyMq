@@ -2,6 +2,7 @@ package com.easy.server.serverHandler
 
 
 import com.easy.core.message.ProducerToServerMessage
+import com.easy.core.message.ServerToProducerMessage
 import com.easy.core.message.TransmissionMessage
 import com.easy.server.EasyServer
 import com.easy.server.core.entity.Topic
@@ -64,7 +65,10 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
                     }
                     topic.putMessage(transmissionMessage)
 
-
+                    val serverToProducerMessage = ServerToProducerMessage()
+                    serverToProducerMessage.receivedIds.add(messageId)
+                    channelHandlerContext.channel().writeAndFlush(serverToProducerMessage)
+                    topic.confirmAnswerToProducer(messageId)
 
 
                 }

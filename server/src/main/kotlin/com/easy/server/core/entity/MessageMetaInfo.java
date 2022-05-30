@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class MessageMetaInfo  implements Serializable {
     private static final long serialVersionUID = 1L;
+
     String topicName;
 
     /**

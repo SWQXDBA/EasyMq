@@ -15,8 +15,6 @@ public class Consumer extends Client {
 
     static int longestSendIntervalMills = 100;
 
-
-
     public String consumerName;
     public ConsumerGroup group;
     public LocalDateTime lastResponseTime = LocalDateTime.now();

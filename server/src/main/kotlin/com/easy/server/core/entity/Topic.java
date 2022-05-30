@@ -20,7 +20,7 @@ public class Topic {
     /**
      * 检测那些没有回应的消息，如果超过这个时间还没有收到确认应答，则认为丢失了
      */
-    static final  long messageCheckTimeSeconds = 10;
+    static final  long messageCheckTimeSeconds = 5;
     static final long redeliverTimedOutMessageIntervalSeconds = 1;
     /**
      * 储存一些可丢失的信息，比如消息已经被哪些消费者组消费过
@@ -74,7 +74,11 @@ public class Topic {
                 if(sendTime.plus(messageCheckTimeSeconds, ChronoUnit.SECONDS).isBefore(now)){
                     final ConsumerGroup consumerGroup = timeEntry.getKey();
                     final TransmissionMessage message = messages.get(messageId);
-                    sendMessageToGroup(consumerGroup,message);
+                    //这个过程中 可能已经接收到回复了 就不需要再次投递了
+                    if(message!=null){
+                        sendMessageToGroup(consumerGroup,message);
+                    }
+
                 }
             }
         }
@@ -118,13 +122,14 @@ public class Topic {
 
 
     private void sendMessageToGroup(ConsumerGroup consumerGroup, TransmissionMessage transmissionMessage) {
-        final Consumer consumer = consumerGroup.nextConsumer();
+        final Consumer consumer = consumerGroup.nextActiveConsumer();
         //该组没有消费者
         if(consumer==null){
             return;
         }
+        final MessageId id = transmissionMessage.id;
         //记录消息往这一组投递的时间
-        final ConcurrentHashMap<ConsumerGroup, LocalDateTime> consumerGroupLocalDateTimeHashMap = messageMetaInfo.consumesSendTime.getOrDefault(transmissionMessage.id,null);
+        ConcurrentHashMap<ConsumerGroup, LocalDateTime> consumerGroupLocalDateTimeHashMap = messageMetaInfo.consumesSendTime.getOrDefault(id,null);
         //高并发时可能存在准备重投时，这个消息刚刚好被响应 此时就不用重新投递了
         if(consumerGroupLocalDateTimeHashMap==null){
             return;
@@ -140,6 +145,7 @@ public class Topic {
     }
 
     public void putMessage(TransmissionMessage message) {
+
         final Set<MessageId> setView = messageMetaInfo.receivedMessages;
         setView.add(message.id);
 
@@ -148,6 +154,15 @@ public class Topic {
         }
         messages.put(message.id,message);
         enAnyQueue(message);
+    }
+
+    /**
+     * 暂时实现： 在确认应答后即时删除
+     * 理论上应该进行策略保留以供生产者查询
+     * @param messageId
+     */
+    public void confirmAnswerToProducer(MessageId messageId){
+        messageMetaInfo.receivedMessages.remove(messageId);
     }
 
     private void enAnyQueue(TransmissionMessage transmissionMessage) {

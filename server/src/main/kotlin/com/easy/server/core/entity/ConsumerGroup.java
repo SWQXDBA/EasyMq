@@ -3,12 +3,18 @@ package com.easy.server.core.entity;
 import com.easy.core.message.ConsumerInitMessage;
 import io.netty.channel.Channel;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class ConsumerGroup {
     String groupName;
     ConcurrentHashMap<String, Consumer> consumers = new ConcurrentHashMap<>();
+
+    List<String> consumerNames = new ArrayList<>();
+    AtomicLong consumerSelector = new AtomicLong();
 
     @Override
     public boolean equals(Object o) {
@@ -35,6 +41,7 @@ public class ConsumerGroup {
         } else {
             Consumer consumer = new Consumer(message.getConsumerName(), this, channel);
             consumers.put(consumer.consumerName, consumer);
+            consumerNames.add(consumer.consumerName);
         }
 
     }
@@ -44,9 +51,20 @@ public class ConsumerGroup {
      *
      * @return
      */
-    public Consumer nextConsumer() {
-        for (Consumer consumer : consumers.values()) {
-            return consumer;
+    public Consumer nextActiveConsumer() {
+        final int index = (int) (consumerSelector.getAndIncrement() % consumerNames.size());
+        final String consumerName = consumerNames.get(index);
+        final Consumer consumer = consumers.getOrDefault(consumerName, null);
+        if (consumer != null) {
+            if (consumer.isActive()) {
+                return consumer;
+            } else {
+                for (Consumer value : consumers.values()) {
+                    if(value.isActive()){
+                        return value;
+                    }
+                }
+            }
         }
         return null;
     }
