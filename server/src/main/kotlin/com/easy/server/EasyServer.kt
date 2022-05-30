@@ -8,6 +8,7 @@ import com.easy.server.core.entity.ConsumerGroup
 import com.easy.server.core.entity.Producer
 import com.easy.server.core.entity.Topic
 import com.easy.server.dao.LocalPersistenceProvider
+import com.easy.server.dao.PersistenceProvider
 import com.easy.server.serverHandler.*
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.*
@@ -25,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
 class EasyServer(
     @Value("\${server.port}")
     val port: Int, val producerToServerMessageHandler: ProducerToServerMessageHandler,
-    public val localPersistenceProvider: LocalPersistenceProvider,
+    public val persistenceProvider: PersistenceProvider,
     private val consumerInitMessageHandler: ConsumerInitMessageHandler,
     private val consumerToServerMessageHandler:ConsumerToServerMessageHandler,
     private val callBackMessageHandler: CallBackMessageHandler

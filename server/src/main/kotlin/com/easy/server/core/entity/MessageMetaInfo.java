@@ -21,7 +21,7 @@ public class MessageMetaInfo  implements Serializable {
     /**
      * 消息发送的大致时间 仅仅是topic的sendToGroup时记录的，消息不一定会被立刻发送
      */
-    public  ConcurrentHashMap<MessageId, HashMap<ConsumerGroup, LocalDateTime>> consumesSendTime = new ConcurrentHashMap<>();
+    public  ConcurrentHashMap<MessageId, ConcurrentHashMap<ConsumerGroup, LocalDateTime>> consumesSendTime = new ConcurrentHashMap<>();
 
     /**
      *   用来告诉producer 此消息已经被服务器接收过

@@ -51,6 +51,9 @@ public class Topic {
                     e.printStackTrace();
                 }
                 redeliverTimedOutMessage();
+                System.out.println("messages "+messages.size()+" receivedMessages "+messageMetaInfo.receivedMessages.size()
+                );
+
             }
         });
 
@@ -61,8 +64,8 @@ public class Topic {
      */
     public void redeliverTimedOutMessage(){
 
-        for (Map.Entry<MessageId, HashMap<ConsumerGroup, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
-            final HashMap<ConsumerGroup, LocalDateTime> value = messageEntry.getValue();
+        for (Map.Entry<MessageId, ConcurrentHashMap<ConsumerGroup, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
+            final ConcurrentHashMap<ConsumerGroup, LocalDateTime> value = messageEntry.getValue();
             final MessageId messageId = messageEntry.getKey();
             for (Map.Entry<ConsumerGroup, LocalDateTime> timeEntry : value.entrySet()) {
 
@@ -83,7 +86,7 @@ public class Topic {
 
     //表示收到了consumer的回应 这个消息已被消费了
     public void responseReceivedMessage(MessageId messageId, String groupName){
-        final HashMap<ConsumerGroup, LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
+        final ConcurrentHashMap<ConsumerGroup, LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
         final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
         if(consumerGroup==null){
             return;
@@ -92,7 +95,6 @@ public class Topic {
 
         if (map.isEmpty()){
             messages.remove(messageId);
-
         }
     }
 
@@ -107,7 +109,7 @@ public class Topic {
     }
     public void sendMessage(TransmissionMessage message){
         //记录消息元信息
-        messageMetaInfo.consumesSendTime.put(message.id,new HashMap<>());
+        messageMetaInfo.consumesSendTime.put(message.id,new ConcurrentHashMap<>());
 
         for (ConsumerGroup consumerGroup : consumerGroups.values()) {
             sendMessageToGroup(consumerGroup,message);
@@ -122,8 +124,13 @@ public class Topic {
             return;
         }
         //记录消息往这一组投递的时间
-        final HashMap<ConsumerGroup, LocalDateTime> consumerGroupLocalDateTimeHashMap = messageMetaInfo.consumesSendTime.get(transmissionMessage.id);
+        final ConcurrentHashMap<ConsumerGroup, LocalDateTime> consumerGroupLocalDateTimeHashMap = messageMetaInfo.consumesSendTime.getOrDefault(transmissionMessage.id,null);
+        //高并发时可能存在准备重投时，这个消息刚刚好被响应 此时就不用重新投递了
+        if(consumerGroupLocalDateTimeHashMap==null){
+            return;
+        }
         consumerGroupLocalDateTimeHashMap.put(consumerGroup,LocalDateTime.now());
+
         consumer.putMessage(transmissionMessage);
     }
 

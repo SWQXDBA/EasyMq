@@ -22,9 +22,8 @@ public class Main {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();
-                System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
+             //   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
                 client.confirmationResponse(messageId);
-
             }
         });
 
@@ -38,7 +37,7 @@ public class Main {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-              //  System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage());
+                System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage());
             }
         });
 
@@ -46,16 +45,15 @@ public class Main {
         AtomicBoolean stop = new AtomicBoolean();
         service.execute(() -> {
             while (!stop.get()){
-
-                for (int i = 0; i < 1000; i++) {
+                for (int i = 0; i < 100; i++) {
                     service.execute(() -> {
-                        for (int j = 0; j < 100; j++) {
-                        //    client.sendToTopic("str", "topic");
+                        for (int j = 0; j < 1000; j++) {
+                            client.sendToTopic("str", "topic");
                         }
                     });
                 }
                 try {
-                    Thread.sleep(5000);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

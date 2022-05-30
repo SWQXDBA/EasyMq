@@ -6,4 +6,5 @@ import java.util.function.Consumer
 
 interface PersistenceProvider {
    suspend fun save(transmissionMessage : TransmissionMessage)
+    fun confirm(messageId: MessageId)
 }

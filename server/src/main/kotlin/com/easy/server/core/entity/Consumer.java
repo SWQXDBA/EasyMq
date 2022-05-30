@@ -69,7 +69,6 @@ public class Consumer extends Client {
         if(channel.isActive()){
             doSend();
         }
-
     }
 
 

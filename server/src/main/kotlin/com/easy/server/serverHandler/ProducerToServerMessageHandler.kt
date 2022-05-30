@@ -58,11 +58,12 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
                         messageUnit.callBack
                     )
 
-                    server.localPersistenceProvider.save(transmissionMessage)
+                    server.persistenceProvider.save(transmissionMessage)
                     if (messageUnit.callBack){
                         server.listenCallBackMessage(messageId,channelHandlerContext.channel());
                     }
                     topic.putMessage(transmissionMessage)
+
 
 
 

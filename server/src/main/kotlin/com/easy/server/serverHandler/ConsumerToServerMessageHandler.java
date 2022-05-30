@@ -23,6 +23,7 @@ public class ConsumerToServerMessageHandler extends SimpleChannelInboundHandler<
         for (MessageId messageId : msg.confirmationResponse) {
             final Topic topic = server.getTopics().get(messageId.getTopicName());
             topic.responseReceivedMessage(messageId,msg.consumerGroupName);
+            server.getPersistenceProvider().confirm(messageId);
         }
 
     }
