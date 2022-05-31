@@ -4,6 +4,7 @@ import com.easy.core.entity.MessageId;
 import com.easy.core.message.CallBackMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
@@ -13,6 +14,7 @@ import java.util.function.Consumer;
 /**
  * 处理那些有回调的消息
  */
+@ChannelHandler.Sharable
 public class CallBackMessageHandler extends SimpleChannelInboundHandler<CallBackMessage> {
     ObjectMapper objectMapper = new ObjectMapper();
 

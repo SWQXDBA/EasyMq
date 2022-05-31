@@ -13,7 +13,7 @@ public class Consumer extends Client {
 
     static int passedTimeSecond = 30;
 
-    static int longestSendIntervalMills = 100;
+    static int longestSendIntervalMills = 1000;
 
     public String consumerName;
     public ConsumerGroup group;

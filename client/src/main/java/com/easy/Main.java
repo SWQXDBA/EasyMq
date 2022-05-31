@@ -27,7 +27,7 @@ public class Main {
             }
         });
 
-
+        client.addNode(8081, "localhost");
         final ExecutorService service = Executors.newFixedThreadPool(1000);
         service.execute(() -> {
             while (true) {
@@ -37,7 +37,7 @@ public class Main {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage());
+                System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage()+" "+client.currentMessageCache.messages.size());
             }
         });
 
@@ -50,13 +50,13 @@ public class Main {
                         if(stop.get()){
                             return;
                         }
-                        for (int j = 0; j < 300; j++) {
+                        for (int j = 0; j < 1000; j++) {
                             client.sendToTopic("str", "topic");
                         }
                     });
                 }
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

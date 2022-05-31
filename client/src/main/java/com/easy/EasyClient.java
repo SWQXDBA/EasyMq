@@ -20,8 +20,11 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
+import kotlin.Pair;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -34,10 +37,20 @@ import java.util.function.Consumer;
 
 public class EasyClient {
 
+    class Node {
+        int port;
+        String host;
 
-    private final int port;
+        public Node(int port, String host) {
+            this.port = port;
+            this.host = host;
+        }
+    }
 
-    private final String host;
+
+    private List<Node> serverNodes = new ArrayList<>();
+
+    AtomicLong nodeSelector = new AtomicLong();
 
     private volatile ChannelFuture channel;
 
@@ -77,24 +90,28 @@ public class EasyClient {
      * @param clientName 这个客户端的名字，不同消费者组的消费者可以重名，因为内部会把groupName和consumerName进行一个拼接
      */
     public EasyClient(int port, String host, String groupName, String clientName) {
-        this.port = port;
-        this.host = host;
+        serverNodes.add(new Node(port,host));
         this.groupName = groupName;
         connectActiveHandler = new ConnectActiveHandler(groupName, clientName);
         consumerToServerMessage = new ConsumerToServerMessage(groupName);
         this.clientName = clientName;
     }
 
+    public void addNode(int port, String host){
+        serverNodes.add(new Node(port,host));
+    }
+
     public long getSentMessage() {
         return sentMessage.get();
     }
 
-     void confirmedProducerMessage(MessageId messageId){
+    void confirmedProducerMessage(MessageId messageId) {
         nonConfirmedMessages.remove(messageId);
     }
 
     /**
      * 把消息进行单向发布
+     *
      * @param message
      * @param topicName
      */
@@ -118,6 +135,7 @@ public class EasyClient {
 
     /**
      * 发送一条消息，并且异步处理回调结果，必须保证不会有多个消费者组返回回调信息
+     *
      * @param message
      * @param topicName
      * @param callBack
@@ -158,8 +176,10 @@ public class EasyClient {
             return (T) result[0];
         });
     }
+
     /**
      * 发送一条消息，并且阻塞等待处理结果，必须保证不会有多个消费者组返回回调信息
+     *
      * @param message
      * @param topicName
      * @param <T>
@@ -168,7 +188,7 @@ public class EasyClient {
     public <T> T sendSync(Object message, String topicName) {
         Thread thread = Thread.currentThread();
         Object[] result = new Object[1];
-        sendAsync(message,topicName, t -> {
+        sendAsync(message, topicName, t -> {
             result[0] = t;
             LockSupport.unpark(thread);
         });
@@ -223,6 +243,11 @@ public class EasyClient {
         }
     }
 
+    private Node nextNode(){
+        final long index = nodeSelector.getAndIncrement() % serverNodes.size();
+        return serverNodes.get((int)index);
+    }
+
     private void connect() {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
@@ -249,7 +274,8 @@ public class EasyClient {
                 }
             });
             ChannelFuture channelFuture;
-            channelFuture = b.connect(host, port);
+            final Node node = nextNode();
+            channelFuture = b.connect(node.host, node.port);
             channelFuture.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
