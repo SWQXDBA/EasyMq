@@ -2,6 +2,9 @@ package com.easy.server
 
 
 
+import com.easy.clientHandler.DataInboundCounter
+import com.easy.clientHandler.DataOutboundCounter
+import com.easy.clientHandler.ReadableControl
 import com.easy.core.entity.MessageId
 import com.easy.server.core.entity.Consumer
 import com.easy.server.core.entity.ConsumerGroup
@@ -18,6 +21,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.serialization.ClassResolvers
 import io.netty.handler.codec.serialization.ObjectDecoder
 import io.netty.handler.codec.serialization.ObjectEncoder
+import io.netty.handler.logging.LogLevel
+import io.netty.handler.logging.LoggingHandler
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
@@ -29,12 +34,15 @@ class EasyServer(
     public val persistenceProvider: PersistenceProvider,
     private val consumerInitMessageHandler: ConsumerInitMessageHandler,
     private val consumerToServerMessageHandler:ConsumerToServerMessageHandler,
-    private val callBackMessageHandler: CallBackMessageHandler
+    private val callBackMessageHandler: CallBackMessageHandler,
+
 ) {
 
     companion object{
         var INSTANSE :EasyServer? = null
     }
+
+    private val dataInboundCounter: DataInboundCounter = DataInboundCounter()
 
     val topics = ConcurrentHashMap<String, Topic>();
 
@@ -51,14 +59,16 @@ class EasyServer(
         val serverBootstrap = ServerBootstrap()
         val bossGroup = NioEventLoopGroup()
         val workGroup = NioEventLoopGroup()
-        val defaultEventLoop = DefaultEventLoop()
+
         try {
             serverBootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel::class.java)
                 .childHandler(object : ChannelInitializer<SocketChannel>() {
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()
-                           // .addLast(LoggingHandler(LogLevel.INFO))
+                            .addLast(dataInboundCounter)
+                            .addLast(ReadableControl())
+//                            .addLast(LoggingHandler(LogLevel.INFO))
                             .addLast(
                                 ObjectDecoder(
                                     Int.MAX_VALUE,

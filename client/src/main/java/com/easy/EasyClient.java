@@ -1,10 +1,7 @@
 package com.easy;
 
 
-import com.easy.clientHandler.CallBackMessageHandler;
-import com.easy.clientHandler.ConnectActiveHandler;
-import com.easy.clientHandler.ServerToConsumerMessageRouter;
-import com.easy.clientHandler.ServerToProducerMessageHandler;
+import com.easy.clientHandler.*;
 import com.easy.core.entity.MessageId;
 import com.easy.core.listener.EasyListener;
 import com.easy.core.message.ConsumerToServerMessage;
@@ -66,6 +63,9 @@ public class EasyClient {
 
     ServerToProducerMessageHandler serverToProducerMessageHandler = new ServerToProducerMessageHandler(this);
 
+    DataInboundCounter dataInboundCounter = new DataInboundCounter();
+    DataOutboundCounter dataOutboundCounter = new DataOutboundCounter();
+
     String groupName;
 
     volatile ProducerToServerMessage currentMessageCache = new ProducerToServerMessage();
@@ -112,6 +112,8 @@ public class EasyClient {
     /**
      * 把消息进行单向发布
      *
+     * 这里的缓存实现有点问题，如果说因为无法写入而在currentMessageCache中存了太多数据，序列化会耗费可能几分钟的时间，
+     * 所以说不能一次把缓存中的所有数据都发送出去。
      * @param message
      * @param topicName
      */
@@ -123,12 +125,15 @@ public class EasyClient {
             e.printStackTrace();
             return;
         }
+
         nonConfirmedMessages.add(unit.messageId);
+
+
         currentMessageCache.messages.add(unit);
         if (channel == null) {
             return;
         }
-        if (channel.channel().isWritable()) {
+        if (channel.channel().isWritable()|| (currentMessageCache.messages.size()>500)) {
             doSend();
         }
     }
@@ -230,9 +235,11 @@ public class EasyClient {
         //发送生产的消息
         if (!this.currentMessageCache.messages.isEmpty()) {
             final ProducerToServerMessage currentMessage = this.currentMessageCache;
+
             this.currentMessageCache = new ProducerToServerMessage();
             channel.channel().writeAndFlush(currentMessage);
             sentMessage.addAndGet(currentMessage.messages.size());
+
         }
         //回应收到的消息id
 
@@ -240,6 +247,7 @@ public class EasyClient {
             final ConsumerToServerMessage message = this.consumerToServerMessage;
             this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
             channel.channel().writeAndFlush(message);
+
         }
     }
 
@@ -257,10 +265,12 @@ public class EasyClient {
             b.group(workerGroup);
             b.channel(NioSocketChannel.class);
             b.option(ChannelOption.SO_KEEPALIVE, true);
+            b.option(ChannelOption.WRITE_BUFFER_WATER_MARK,new WriteBufferWaterMark(1024*1024,1024*1024*4));
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline()
+                            .addLast(dataOutboundCounter)
                             //    .addLast(new SpeedTestHandler())
                             .addLast(new ObjectDecoder(Integer.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
@@ -307,9 +317,12 @@ public class EasyClient {
                 if (channel == null || !channel.channel().isActive()) {
                     continue;
                 }
+
                 if (channel.channel().isWritable()) {
                     doSend();
+
                 }
+
             }
         });
         while (true) {

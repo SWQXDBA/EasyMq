@@ -16,7 +16,7 @@ public class Main3CallBackTest {
 
 
 
-        EasyClient client = new EasyClient(8080, "localhost", "group2", "消费者9");
+        EasyClient client = new EasyClient(8081, "localhost", "group2", "消费者9");
         client.addListener(new CallBackListener<String, Person>("topic") {
             @Override
             public Person answer(MessageId messageId, String message) {

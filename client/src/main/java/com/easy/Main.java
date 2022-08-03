@@ -17,58 +17,49 @@ public class Main {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
-        EasyClient client = new EasyClient(8080, "localhost", "group1", "消费者1");
-        client.addListener(new DefaultListener<String>("topic") {
-            @Override
-            public void handle(MessageId messageId, String message) {
-                atomicLong.getAndIncrement();
-             //   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
-                client.confirmationResponse(messageId);
-            }
-        });
+        EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者1");
+//        client.addListener(new DefaultListener<String>("topic") {
+//            @Override
+//            public void handle(MessageId messageId, String message) {
+//                atomicLong.getAndIncrement();
+//                   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
+//                client.confirmationResponse(messageId);
+//            }
+//        });
 
-        client.addNode(8081, "localhost");
+//        client.addNode(8081, "localhost");
         final ExecutorService service = Executors.newFixedThreadPool(1000);
+
+
+        AtomicBoolean stop = new AtomicBoolean(false);
         service.execute(() -> {
             while (true) {
-                long last = atomicLong.get();
+                if(!stop.get()){
+                    for (int i = 0; i < 100; i++) {
+                        service.execute(() -> {
+                            if (stop.get()) {
+                                return;
+                            }
+                            for (int j = 0; j < 1000; j++) {
+                                client.sendToTopic("str", "topic");
+                            }
+                        });
+                    }
+                }
                 try {
-                    Thread.sleep(1000L);
+                    Thread.sleep(200);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                System.out.println(atomicLong.get()-last+"   已收到"+atomicLong+"/"+client.getSentMessage()+" "+client.currentMessageCache.messages.size());
             }
         });
 
-
-        AtomicBoolean stop = new AtomicBoolean();
         service.execute(() -> {
-            while (!stop.get()){
-                for (int i = 0; i < 100; i++) {
-                    service.execute(() -> {
-                        if(stop.get()){
-                            return;
-                        }
-                        for (int j = 0; j < 1000; j++) {
-                            client.sendToTopic("str", "topic");
-                        }
-                    });
-                }
-                try {
-                    Thread.sleep(2000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
-
-        });
-
-        service.execute(()->{
+            while(true){
                 Scanner scanner = new Scanner(System.in);
-            scanner.nextLine();
-            stop.set(true);
+                scanner.nextLine();
+                stop.set(!stop.get());
+            }
         });
 
         client.run();
