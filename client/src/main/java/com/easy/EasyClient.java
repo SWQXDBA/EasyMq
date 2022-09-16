@@ -17,16 +17,14 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
+import io.netty.handler.timeout.IdleStateHandler;
 import kotlin.Pair;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
@@ -270,11 +268,17 @@ public class EasyClient {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ch.pipeline()
+                            //客户端3秒内没有发送消息 则发送心跳包
+                            .addLast(new IdleStateHandler(0,3,0, TimeUnit.SECONDS))
+                            //心跳包检测 这里需要放在ObjectDecoder之后因为心跳是一个String " " 需要编码后才能发送出去
+                            .addLast(new IdleHandler())
                             .addLast(dataOutboundCounter)
                             //    .addLast(new SpeedTestHandler())
                             .addLast(new ObjectDecoder(Integer.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
                             .addLast(new ObjectEncoder())
+
+
                             .addLast(connectActiveHandler)
                             .addLast(serverToConsumerMessageRouter)
                             .addLast(callBackMessageHandler)

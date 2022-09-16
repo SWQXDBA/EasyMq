@@ -3,14 +3,11 @@ package com.easy.server
 
 
 import com.easy.clientHandler.DataInboundCounter
-import com.easy.clientHandler.DataOutboundCounter
+import com.easy.clientHandler.IdleHandler
 import com.easy.clientHandler.ReadableControl
 import com.easy.core.entity.MessageId
-import com.easy.server.core.entity.Consumer
 import com.easy.server.core.entity.ConsumerGroup
-import com.easy.server.core.entity.Producer
 import com.easy.server.core.entity.Topic
-import com.easy.server.dao.LocalPersistenceProvider
 import com.easy.server.dao.PersistenceProvider
 import com.easy.server.serverHandler.*
 import io.netty.bootstrap.ServerBootstrap
@@ -21,11 +18,12 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.handler.codec.serialization.ClassResolvers
 import io.netty.handler.codec.serialization.ObjectDecoder
 import io.netty.handler.codec.serialization.ObjectEncoder
-import io.netty.handler.logging.LogLevel
-import io.netty.handler.logging.LoggingHandler
+import io.netty.handler.timeout.IdleStateHandler
+import io.netty.util.concurrent.DefaultEventExecutorGroup
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 
 @Service
 class EasyServer(
@@ -60,12 +58,17 @@ class EasyServer(
         val bossGroup = NioEventLoopGroup()
         val workGroup = NioEventLoopGroup()
 
+        val e = DefaultEventExecutorGroup(12)
         try {
             serverBootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel::class.java)
                 .childHandler(object : ChannelInitializer<SocketChannel>() {
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()
+                            //服务器5秒内没有接收到可读请求则触发事件
+                            .addLast(IdleStateHandler(5,0,0,TimeUnit.SECONDS))
+                            //心跳包检测
+                            .addLast(IdleHandler())
                             .addLast(dataInboundCounter)
                             .addLast(ReadableControl())
 //                            .addLast(LoggingHandler(LogLevel.INFO))
@@ -76,10 +79,14 @@ class EasyServer(
                                 )
                             )
                             .addLast(ObjectEncoder())
+
+
+
                             .addLast(consumerInitMessageHandler)
                             .addLast(producerToServerMessageHandler)
                             .addLast(consumerToServerMessageHandler)
                             .addLast(callBackMessageHandler)
+
                     }
 
                 })
