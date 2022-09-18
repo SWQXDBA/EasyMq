@@ -2,6 +2,7 @@ package com.easy.server.core.entity;
 
 import com.easy.core.entity.MessageId;
 import com.easy.core.message.TransmissionMessage;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -34,8 +35,6 @@ public class Topic {
 
     AtomicInteger queueSelector = new AtomicInteger();
 
-    int resendSeconds;
-
     public Topic(String name) {
         messageMetaInfo = new MessageMetaInfo();
         messageMetaInfo.topicName = name;
@@ -43,25 +42,16 @@ public class Topic {
         for (int i = 0; i < 20; i++) {
             logicQueues.add(new MessageQueue(this));
         }
-        Executors.newSingleThreadExecutor().execute(()->{
-            while(true){
-                try {
-                    Thread.sleep(redeliverTimedOutMessageIntervalSeconds*1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                redeliverTimedOutMessage();
-                System.out.println("messages "+messages.size()+" receivedMessages "+messageMetaInfo.receivedMessages.size()
-                );
-
-            }
-        });
 
     }
+
+
+
 
     /**
      * 检测哪些消息一直没有回应，考虑重投
      */
+    @Scheduled(fixedDelay = redeliverTimedOutMessageIntervalSeconds*1000)
     public void redeliverTimedOutMessage(){
 
         for (Map.Entry<MessageId, ConcurrentHashMap<ConsumerGroup, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
@@ -88,18 +78,25 @@ public class Topic {
         consumerGroups.putIfAbsent(consumerGroup.groupName,consumerGroup);
     }
 
-    //表示收到了consumer的回应 这个消息已被消费了
-    public void responseReceivedMessage(MessageId messageId, String groupName){
+    /**
+     * 表示收到了consumer的回应 这个消息已被消费了
+
+     * @return 是否消息被所有消费者组消费完成
+     */
+    public boolean responseReceivedMessage(MessageId messageId, String groupName){
         final ConcurrentHashMap<ConsumerGroup, LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
         final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
         if(consumerGroup==null){
-            return;
+            return true;
         }
         map.remove(consumerGroup);
 
+        //消息已被全部消费者组消费完成，可以丢弃
         if (map.isEmpty()){
             messages.remove(messageId);
+            return true;
         }
+        return false;
     }
 
     public long getNextId() {

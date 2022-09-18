@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-
+/**
+ * 消费者初始化消息处理器 用来注册消费者
+ */
 @Service
 @ChannelHandler.Sharable
 public class ConsumerInitMessageHandler extends SimpleChannelInboundHandler<ConsumerInitMessage> {

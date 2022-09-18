@@ -98,7 +98,7 @@ class LocalPersistenceProvider : PersistenceProvider {
         }
     }
 
-    override fun confirm(messageId: MessageId) {
+    override fun remove(messageId: MessageId) {
         val fileName = messageFileMap[messageId] ?: return
         messageFileMap.remove(messageId)
         val count = fileUnconfirmedMessageSize.computeIfPresent(fileName) { _, value -> value - 1 }
@@ -118,6 +118,14 @@ class LocalPersistenceProvider : PersistenceProvider {
             }
         }
 
+    }
+
+    override fun persistMeta() {
+        TODO("Not yet implemented")
+    }
+
+    override fun loadMeta() {
+        TODO("Not yet implemented")
     }
 
 

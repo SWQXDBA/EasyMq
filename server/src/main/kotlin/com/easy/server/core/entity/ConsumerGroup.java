@@ -49,7 +49,7 @@ public class ConsumerGroup {
     /**
      * 获取下一个消费者
      *
-     * @return
+     *
      */
     public Consumer nextActiveConsumer() {
         final int index = (int) (consumerSelector.getAndIncrement() % consumerNames.size());

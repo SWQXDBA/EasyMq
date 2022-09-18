@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
 class EasyServer(
     @Value("\${server.port}")
     val port: Int, val producerToServerMessageHandler: ProducerToServerMessageHandler,
-    public val persistenceProvider: PersistenceProvider,
+     val persistenceProvider: PersistenceProvider,
     private val consumerInitMessageHandler: ConsumerInitMessageHandler,
     private val consumerToServerMessageHandler:ConsumerToServerMessageHandler,
     private val callBackMessageHandler: CallBackMessageHandler,
@@ -56,7 +56,7 @@ class EasyServer(
 
         val serverBootstrap = ServerBootstrap()
         val bossGroup = NioEventLoopGroup()
-        val workGroup = NioEventLoopGroup()
+        val workGroup = NioEventLoopGroup(1024)
 
         val e = DefaultEventExecutorGroup(12)
         try {

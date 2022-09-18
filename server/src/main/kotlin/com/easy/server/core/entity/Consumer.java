@@ -6,9 +6,15 @@ import com.easy.core.message.TransmissionMessage;
 import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 表示建立了连接的一个消费者 用来发送消息
+ */
 public class Consumer extends Client {
 
     static int passedTimeSecond = 30;
@@ -19,15 +25,18 @@ public class Consumer extends Client {
     public ConsumerGroup group;
     public LocalDateTime lastResponseTime = LocalDateTime.now();
 
-    final ExecutorService service = Executors.newSingleThreadExecutor();
+    final static ExecutorService service = Executors.newCachedThreadPool();
 
+    //一次性最多批量发送多少数据 如果数据太大 序列化会出问题
+    final static int BatchSendBytesSize = 1024 * 1024;
     private Channel channel;
 
 
-    public void resetChannel( Channel channel){
+    public void resetChannel(Channel channel) {
         this.channel = channel;
     }
-    public boolean isActive(){
+
+    public boolean isActive() {
         return channel.isActive();
     }
 
@@ -47,14 +56,13 @@ public class Consumer extends Client {
             }
 
         });
-
     }
 
 
     /**
      * 如果每有一条消息 就进行一次发送未免太浪费了 这里可以积攒一些消息再进行发送
      */
-    private transient volatile ServerToConsumerMessage currentMessage = new ServerToConsumerMessage();
+    private transient volatile ServerToConsumerMessage cacheMessage = new ServerToConsumerMessage();
 
 
     /**
@@ -63,12 +71,11 @@ public class Consumer extends Client {
      * @param transmissionMessage
      */
     public void sendImmediately(TransmissionMessage transmissionMessage) {
-        currentMessage.putMessage(transmissionMessage);
-        if(channel.isActive()){
+        cacheMessage.putMessage(transmissionMessage);
+        if (channel.isActive()) {
             doSend();
         }
     }
-
 
 
     /**
@@ -77,15 +84,16 @@ public class Consumer extends Client {
      * @param transmissionMessage
      */
     public void putMessage(TransmissionMessage transmissionMessage) {
-        if(transmissionMessage.isNeedCallBack()){
+        if (transmissionMessage.isNeedCallBack()) {
             sendImmediately(transmissionMessage);
-        }else{
-            currentMessage.putMessage(transmissionMessage);
+        } else {
+            cacheMessage.putMessage(transmissionMessage);
             checkAndSend();
         }
     }
-    private void checkAndSend(){
-        if (channel.isActive()&&channel.isWritable()) {
+
+    private void checkAndSend() {
+        if (channel.isActive() && channel.isWritable()) {
             doSend();
         }
     }
@@ -97,20 +105,41 @@ public class Consumer extends Client {
     private void doSend() {
         ServerToConsumerMessage sendMessage;
         synchronized (this) {
-            if (this.currentMessage.getMessages().isEmpty()) {
+            if (this.cacheMessage.getMessages().isEmpty()) {
                 return;
             }
-            sendMessage = this.currentMessage;
-            this.currentMessage = new ServerToConsumerMessage();
-
+            sendMessage = this.cuttingMessage();
         }
-        if(channel.isActive()&&channel.isWritable()){
+        if (channel.isActive()) {
             //注意 在这个过程中 如果说客户端断开连接 那么这一部分消息会丢失掉，需要重新发送给consumerGroup
             channel.writeAndFlush(sendMessage);
-
         }
 
     }
 
+    /**
+     * 确保单次发送的数据不会过多
+     *
+     */
+    private ServerToConsumerMessage cuttingMessage() {
+        final ServerToConsumerMessage currentMessage = this.cacheMessage;
+        List<TransmissionMessage> sortList = new ArrayList<>(currentMessage.getMessages());
+        sortList.sort(Comparator.comparingInt((TransmissionMessage m) -> m.getData().length));
+        ServerToConsumerMessage serverToConsumerMessage = new ServerToConsumerMessage();
+
+        int currentSize = 0;
+        for (TransmissionMessage transmissionMessage : sortList) {
+            currentSize += transmissionMessage.getData().length;
+            //检测大小，但是最少发送一条消息
+            if (currentSize < BatchSendBytesSize || serverToConsumerMessage.getMessages().isEmpty()) {
+                serverToConsumerMessage.putMessage(transmissionMessage);
+                currentMessage.getMessages().remove(transmissionMessage);
+            } else {
+                break;
+            }
+        }
+        return serverToConsumerMessage;
+
+    }
 
 }
