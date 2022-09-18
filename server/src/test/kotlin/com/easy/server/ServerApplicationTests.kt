@@ -1,11 +1,14 @@
 package com.easy.server
 
+import com.easy.server.persistenceCollection.JacksonSerializer
+import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceList
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.IntBuffer
 import java.nio.channels.FileChannel
+import java.nio.file.Files
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
@@ -54,5 +57,18 @@ class ServerApplicationTests {
             }
         }
     }
+
+    @Test
+    fun fileTest2() {
+        Files.delete(Path.of("./test2.txt"))
+        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(String::class.java))
+        for (i in 0..10){
+            persistenceList.add("$i")
+        }
+        for (s in persistenceList) {
+            println(s)
+        }
+    }
+
 
 }
