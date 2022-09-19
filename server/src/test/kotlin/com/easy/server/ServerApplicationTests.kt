@@ -62,12 +62,25 @@ class ServerApplicationTests {
     fun fileTest2() {
         Files.delete(Path.of("./test2.txt"))
         val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(String::class.java))
-        for (i in 0..10){
+        for (i in 0..5){
             persistenceList.add("$i")
         }
-        for (s in persistenceList) {
-            println(s)
-        }
+        println(persistenceList)
+
+        persistenceList.remove("")
+        println(persistenceList)
+
+        persistenceList.remove("2")
+        println(persistenceList)
+
+        persistenceList.remove("2")
+        println(persistenceList)
+
+        persistenceList.remove("0")
+        println(persistenceList)
+
+        persistenceList.remove("5")
+        println(persistenceList)
     }
 
 

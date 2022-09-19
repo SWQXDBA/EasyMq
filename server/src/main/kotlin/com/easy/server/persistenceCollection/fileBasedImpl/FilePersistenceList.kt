@@ -7,6 +7,8 @@ import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.io.path.exists
 
 /**
@@ -45,10 +47,7 @@ class FilePersistenceList<E>(
     override var size: Int
         get() = fileMapper.position(SIZE_POSITION).asIntBuffer().get()
         set(value) {
-            println("sizeSet +$size")
-            if(size>100){
-                println("!!!")
-            }
+
             fileMapper.position(SIZE_POSITION).asIntBuffer().put(value)
         }
 
@@ -76,6 +75,7 @@ class FilePersistenceList<E>(
             //找到
             val lastData = getOffsetIndexByIndex(size - 1)
             val (_, _, dataSize, dataFilePosition) = getBlockMetaByOffsetIndex(lastData)
+
             return dataFilePosition + dataSize
         }
 
@@ -91,11 +91,10 @@ class FilePersistenceList<E>(
      */
     private val dataAreaSize: Int
         get() {
-            if(isEmpty()){
+            if (isEmpty()) {
                 return 0
             }
-
-           return usageFileSize - dataAreaPosition
+            return usageFileSize - dataAreaPosition
         }
 
     companion object {
@@ -112,16 +111,16 @@ class FilePersistenceList<E>(
         val DELETE_OFFSET = 0
 
         //hashcode在数据块中的偏移量
-        val DATA_HASHCODE_OFFSET = 4
+        val DATA_HASHCODE_OFFSET = 1
 
-        //hashcode在数据块中的偏移量
-        val DATA_SIZE_OFFSET = 8
+        //数据大小在数据块中的偏移量
+        val DATA_SIZE_OFFSET = 5
 
         //数据本体数据块中的偏移量
         val DATA_OFFSET = 9
 
         //数据块元数据所占大小
-        val DATA_BLOCK_META_LENGTH = 8
+        val DATA_BLOCK_META_LENGTH = 9
     }
 
 
@@ -135,7 +134,6 @@ class FilePersistenceList<E>(
             FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
                 .map(FileChannel.MapMode.READ_WRITE, 0, fileSize)
 
-        println("init size $size")
 
     }
 
@@ -158,12 +156,20 @@ class FilePersistenceList<E>(
      * 根据索引(数据区偏移量)得到数据元信息
      */
     private fun getBlockMetaByOffsetIndex(offsetIndex: Int): BlockMetaData {
+
         //数据块在整个文件中的偏移量
+
         val dataBlockFilePosition = offsetIndex + dataAreaPosition
+
         val delete = fileMapper.position(dataBlockFilePosition + DELETE_OFFSET).get() == 1.toByte()
         val dataHashcode =
             fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().get()
+
+
+
         val dataSize = fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().get()
+
+
         return BlockMetaData(delete, dataHashcode, dataSize, dataBlockFilePosition + DATA_OFFSET)
     }
 
@@ -178,7 +184,7 @@ class FilePersistenceList<E>(
      * 扩容文件为1.5倍
      */
     private fun resizeFile() {
-        println("resizeFile")
+
         fileSize = (fileSize * 1.5).toLong()
 
 
@@ -194,9 +200,10 @@ class FilePersistenceList<E>(
      * 扩容偏移索引容量为2倍 需要后移数据区
      */
     private fun resizeIndexCap() {
-        println("resizeIndexCap")
+
+
         val oldCap = indexCap
-        val newCap = oldCap * 2
+        val newCap = if(oldCap==0) 2 else {oldCap * 2}
         val moveBytes = (newCap - oldCap) * 4
         move(dataAreaPosition, dataAreaSize, moveBytes)
         indexCap = newCap
@@ -217,6 +224,16 @@ class FilePersistenceList<E>(
     }
 
     /**
+     * 获取尾部新元素的偏移量
+     */
+    private fun getLastOffsetIndex(): Int {
+        if (size == 0) {
+            return 0
+        }
+        return dataAreaSize
+    }
+
+    /**
      * 根据index找到偏移索引,得出数据区偏移量
      * index: 第几个元素
      */
@@ -224,6 +241,7 @@ class FilePersistenceList<E>(
         if (index == 0) {
             return 0
         }
+
         return fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).asIntBuffer().get()
     }
 
@@ -233,7 +251,8 @@ class FilePersistenceList<E>(
      */
     private fun setOffsetIndexByIndex(index: Int, offsetIndex: Int) {
         fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).asIntBuffer().put(offsetIndex)
-    }
+
+  }
 
     /**
      * 根据index找到偏移索引 返回偏移索引在文件中的偏移量
@@ -245,6 +264,7 @@ class FilePersistenceList<E>(
     }
 
     private fun getByteArray(position: Int, length: Int): ByteArray {
+
         val arr = ByteArray(length)
         fileMapper.position(position)
         fileMapper.get(arr)
@@ -266,13 +286,15 @@ class FilePersistenceList<E>(
     }
 
     override fun get(index: Int): E {
-        val offset = getOffsetIndexByIndex(index)
-        val meta = getBlockMetaByOffsetIndex(offset)
+
+        val meta = getBlockMetaByIndex(index)
+
         val byteArray = getByteArray(meta.dataFilePosition, meta.dataSize)
+
         return serializer.fromBytes(byteArray)
     }
 
-    private fun searchIndex(element: E,range: IntProgression):Int{
+    private fun searchIndex(element: E, range: IntProgression): Int {
         for (i in range) {
             //根据索引 找到数据块的数据区偏移量
             val offset = getOffsetIndexByIndex(i)
@@ -293,8 +315,9 @@ class FilePersistenceList<E>(
         }
         return -1
     }
+
     override fun indexOf(element: E): Int {
-      return  searchIndex(element,0 until size)
+        return searchIndex(element, 0 until size)
     }
 
     override fun isEmpty(): Boolean {
@@ -314,7 +337,7 @@ class FilePersistenceList<E>(
                 resizeFile()
             }
             resizeIndexCap()
-            println("add size $size")
+
         }
 
         val elementBytes = serializer.toBytes(element)
@@ -327,8 +350,16 @@ class FilePersistenceList<E>(
 
         /**开始插入偏移索引*/
 
-        //插入的新元素的偏移量相当于上一个在这里的元素的偏移量
-        val elementOffsetIndex = getOffsetIndexByIndex(index)
+        val elementOffsetIndex: Int
+        elementOffsetIndex = if (index == size) {
+            getLastOffsetIndex()
+        } else {
+            //往中间插入的新元素的偏移量相当于上一个在这里的元素的偏移量
+            getOffsetIndexByIndex(index)
+        }
+
+
+
         //修改后面元素的偏移索引值
         for (i in index until size) {
             var offsetIndex = getOffsetIndexByIndex(i)
@@ -336,30 +367,47 @@ class FilePersistenceList<E>(
             setOffsetIndexByIndex(i, offsetIndex)
         }
 
-        //全部后移4个字节 腾出位置
-        move(getOffsetIndexPositionByIndex(index), (size - index) * intByteSize, intByteSize)
+        if(index!=size){
+            //全部后移4个字节 腾出位置
+            move(getOffsetIndexPositionByIndex(index), (size - index) * intByteSize, intByteSize)
+        }
+
+
         //设置元素的偏移索引
         setOffsetIndexByIndex(index, elementOffsetIndex)
 
+
         /**开始插入数据*/
-        //此时 elementOffsetIndex上放的还是原先的数据 现在要集体后移
-        move(
-            //数据块的文件偏移量=数据区的文件偏移量+数据块在数据区的偏移量
-            dataAreaPosition + elementOffsetIndex,
-            //要移动的数据区长度=数据区大小-数起始位置在数据区的偏移量
-            dataAreaSize - elementOffsetIndex
-            //移动量=新数据块的大小
-            , dataBlockSize
-        )
+        if (index != size) {
+
+            //此时 elementOffsetIndex上放的还是原先的数据 现在要集体后移
+            move(
+                //数据块的文件偏移量=数据区的文件偏移量+数据块在数据区的偏移量
+                dataAreaPosition + elementOffsetIndex,
+                //要移动的数据区长度=数据区大小-数起始位置在数据区的偏移量
+                dataAreaSize - elementOffsetIndex
+                //移动量=新数据块的大小
+                , dataBlockSize
+            )
+        }
+
         //插入元数据
 
-        fileMapper.position(elementOffsetIndex).put(0)
-        fileMapper.position(elementOffsetIndex+ DATA_HASHCODE_OFFSET).asIntBuffer().put(element.hashCode())
-        fileMapper.position(elementOffsetIndex+ DATA_SIZE_OFFSET).asIntBuffer().put(elementBytes.size)
+
+
+        val dataBlockFilePosition = getDataBlockFilePositionByOffsetIndex(elementOffsetIndex)
+
+
+
+        fileMapper.position(dataBlockFilePosition).put(0)
+        fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().put(element.hashCode())
+
+
+        fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().put(elementBytes.size)
+
         //插入数据
-        fileMapper.position(elementOffsetIndex+ DATA_OFFSET).put(elementBytes)
-        println("insert size $size")
-        size += 1
+        fileMapper.position(dataBlockFilePosition + DATA_OFFSET).put(elementBytes)
+           size += 1
     }
 
     override fun addAll(index: Int, elements: Collection<E>): Boolean {
@@ -380,7 +428,7 @@ class FilePersistenceList<E>(
 
     override fun clear() {
         //从尾部移除可以不用移动偏移索引
-        for (i in size-1 downTo 0){
+        for (i in size - 1 downTo 0) {
             removeAt(i)
         }
     }
@@ -391,6 +439,7 @@ class FilePersistenceList<E>(
             return false
         }
         removeAt(index)
+
         return true
     }
 
@@ -424,9 +473,11 @@ class FilePersistenceList<E>(
             //移动4个字节
             -1 * intByteSize
         )
+        size--
         return element
 
     }
+
     /**
      * 粗暴的实现
      */
@@ -438,7 +489,7 @@ class FilePersistenceList<E>(
 
     override fun set(index: Int, element: E): E {
         removeAt(index)
-        add(index,element)
+        add(index, element)
         return element
     }
 
@@ -448,7 +499,7 @@ class FilePersistenceList<E>(
     }
 
     override fun lastIndexOf(element: E): Int {
-        return  searchIndex(element, size-1 downTo 0)
+        return searchIndex(element, size - 1 downTo 0)
     }
 
     override fun listIterator(): MutableListIterator<E> {
@@ -458,12 +509,13 @@ class FilePersistenceList<E>(
     override fun listIterator(index: Int): MutableListIterator<E> {
         return object : MutableListIterator<E> {
             var current = index
+
             override fun hasPrevious(): Boolean {
-                return current>0
+                return current > 0
             }
 
             override fun nextIndex(): Int {
-               return current+1
+                return current + 1
             }
 
             override fun previous(): E {
@@ -472,20 +524,21 @@ class FilePersistenceList<E>(
             }
 
             override fun previousIndex(): Int {
-                return current-1
+                return current - 1
             }
 
             override fun add(element: E) {
-                add(current,element)
+                add(current, element)
             }
 
             override fun hasNext(): Boolean {
-               return current<size
+                return current < size
             }
 
             override fun next(): E {
+                val currentElement = get(current)
                 current++
-                return get(current)
+                return currentElement
             }
 
             override fun remove() {
@@ -493,7 +546,7 @@ class FilePersistenceList<E>(
             }
 
             override fun set(element: E) {
-                set(current,element)
+                set(current, element)
             }
 
         }
@@ -504,9 +557,26 @@ class FilePersistenceList<E>(
      */
     override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> {
         val mutableList = ArrayList<E>()
-        for(i in fromIndex until toIndex){
+        for (i in fromIndex until toIndex) {
             mutableList.add(get(i))
         }
         return mutableList
+    }
+
+    override fun toString(): String {
+        val builder = StringBuilder()
+        builder.append("{")
+
+        val iterator = iterator()
+        while(iterator.hasNext()){
+            builder.append("${iterator.next()}")
+
+            if(iterator.hasNext()){
+                builder.append(" ,")
+            }
+        }
+        builder.append("}")
+
+        return builder.toString()
     }
 }
