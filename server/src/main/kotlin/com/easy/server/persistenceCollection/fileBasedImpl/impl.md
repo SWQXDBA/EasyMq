@@ -36,7 +36,7 @@ list/set
 ## 删除操作
 1: size-1
 2: 根据索引，或者hashcode+数据逐字节对比找到数据 把delete标志位设置为1
-3: 删除索引  
+3: 删除并前移后面的索引
 
 ## 查找元素:  
 1: 根据hashcode遍历 找到hashcode相同的且delete标志不为1的

@@ -52,9 +52,9 @@ class FilePersistenceList<E>(
         }
 
 
-    private var indexCap: Int
+     var indexCap: Int
         get() = fileMapper.position(INDEX_CAP_POSITION).asIntBuffer().get()
-        set(value) {
+       private set(value) {
             fileMapper.position(INDEX_CAP_POSITION).asIntBuffer().put(value)
         }
 
@@ -67,7 +67,7 @@ class FilePersistenceList<E>(
     /**
      * 已用文件大小
      */
-    private val usageFileSize: Int
+     val usageFileSize: Int
         get() {
             if (isEmpty()) {
                 return dataAreaPosition - 1
@@ -75,6 +75,8 @@ class FilePersistenceList<E>(
             //找到
             val lastData = getOffsetIndexByIndex(size - 1)
             val (_, _, dataSize, dataFilePosition) = getBlockMetaByOffsetIndex(lastData)
+
+
 
             return dataFilePosition + dataSize
         }
@@ -158,7 +160,6 @@ class FilePersistenceList<E>(
     private fun getBlockMetaByOffsetIndex(offsetIndex: Int): BlockMetaData {
 
         //数据块在整个文件中的偏移量
-
         val dataBlockFilePosition = offsetIndex + dataAreaPosition
 
         val delete = fileMapper.position(dataBlockFilePosition + DELETE_OFFSET).get() == 1.toByte()
@@ -219,14 +220,18 @@ class FilePersistenceList<E>(
             return
         }
         val temp = ByteArray(length)
+
         fileMapper.position(position).get(temp)
         fileMapper.position(position + step).put(temp)
     }
 
     /**
-     * 获取尾部新元素的偏移量
+     * 获取尾部新元素的偏移量 用于插入元素
      */
     private fun getLastOffsetIndex(): Int {
+        /**
+         * 此时 没有元素了 则认为所有取数据都被废弃 从0开始使用
+         */
         if (size == 0) {
             return 0
         }
@@ -238,9 +243,6 @@ class FilePersistenceList<E>(
      * index: 第几个元素
      */
     private fun getOffsetIndexByIndex(index: Int): Int {
-        if (index == 0) {
-            return 0
-        }
 
         return fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).asIntBuffer().get()
     }
@@ -340,6 +342,7 @@ class FilePersistenceList<E>(
 
         }
 
+
         val elementBytes = serializer.toBytes(element)
         //数据块大小
         val dataBlockSize = elementBytes.size + DATA_BLOCK_META_LENGTH
@@ -348,8 +351,7 @@ class FilePersistenceList<E>(
             resizeFile()
         }
 
-        /**开始插入偏移索引*/
-
+        //获取偏移索引
         val elementOffsetIndex: Int
         elementOffsetIndex = if (index == size) {
             getLastOffsetIndex()
@@ -358,8 +360,34 @@ class FilePersistenceList<E>(
             getOffsetIndexByIndex(index)
         }
 
+        /**
+         * 需要先插入数据 再修改索引 否则读取数据区范围时会出错 因为获取usageSize需要找到最后一个元素
+         */
 
+        /**开始插入数据*/
+        if (index != size) {
+            //数据块的文件偏移量=数据区的文件偏移量+数据块在数据区的偏移量
+            val start = dataAreaPosition + elementOffsetIndex
+            //要移动的数据区长度=数据区大小-数据块起始位置在数据区的偏移量
+            val length = dataAreaSize - elementOffsetIndex
+            //此时 elementOffsetIndex上放的还是原先的数据 现在要集体后移
+            move(
+                start,
+                length
+                //移动量=新数据块的大小
+                , dataBlockSize
+            )
+        }
 
+        //插入元数据
+        val dataBlockFilePosition = getDataBlockFilePositionByOffsetIndex(elementOffsetIndex)
+        fileMapper.position(dataBlockFilePosition).put(0)
+        fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().put(element.hashCode())
+        fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().put(elementBytes.size)
+        //插入数据
+        fileMapper.position(dataBlockFilePosition + DATA_OFFSET).put(elementBytes)
+
+        /**开始插入偏移索引*/
         //修改后面元素的偏移索引值
         for (i in index until size) {
             var offsetIndex = getOffsetIndexByIndex(i)
@@ -372,41 +400,8 @@ class FilePersistenceList<E>(
             move(getOffsetIndexPositionByIndex(index), (size - index) * intByteSize, intByteSize)
         }
 
-
         //设置元素的偏移索引
         setOffsetIndexByIndex(index, elementOffsetIndex)
-
-
-        /**开始插入数据*/
-        if (index != size) {
-
-            //此时 elementOffsetIndex上放的还是原先的数据 现在要集体后移
-            move(
-                //数据块的文件偏移量=数据区的文件偏移量+数据块在数据区的偏移量
-                dataAreaPosition + elementOffsetIndex,
-                //要移动的数据区长度=数据区大小-数起始位置在数据区的偏移量
-                dataAreaSize - elementOffsetIndex
-                //移动量=新数据块的大小
-                , dataBlockSize
-            )
-        }
-
-        //插入元数据
-
-
-
-        val dataBlockFilePosition = getDataBlockFilePositionByOffsetIndex(elementOffsetIndex)
-
-
-
-        fileMapper.position(dataBlockFilePosition).put(0)
-        fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().put(element.hashCode())
-
-
-        fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().put(elementBytes.size)
-
-        //插入数据
-        fileMapper.position(dataBlockFilePosition + DATA_OFFSET).put(elementBytes)
            size += 1
     }
 
@@ -435,9 +430,11 @@ class FilePersistenceList<E>(
 
     override fun remove(element: E): Boolean {
         val index = indexOf(element)
+
         if (index == -1) {
             return false
         }
+
         removeAt(index)
 
         return true
@@ -459,25 +456,36 @@ class FilePersistenceList<E>(
         }
         //数据块的文件偏移量
         val dataBlockFilePosition = getDataBlockFilePositionByIndex(index)
+
         val meta = getBlockMetaByIndex(index)
         val element = serializer.fromBytes(getByteArray(meta.dataFilePosition, meta.dataSize))
 
         //设置删除标记位
         fileMapper.position(dataBlockFilePosition).put(1)
 
+
         move(
             //下一个偏移索引的位置
             getOffsetIndexPositionByIndex(index) + intByteSize,
             //要把后面的所有偏移索引向前挪
-            (size - 1 - index) * intByteSize,
+            //0 0
+            (size -1 - index) * intByteSize,
             //移动4个字节
             -1 * intByteSize
         )
+
         size--
         return element
 
     }
 
+    private fun printIndexes(){
+        fileMapper.position(OFFSET_INDEX_POSITION)
+        for(i in 0 until size){
+            print("${fileMapper.position(OFFSET_INDEX_POSITION + i * intByteSize).asIntBuffer().get()}  ")
+        }
+        println()
+    }
     /**
      * 粗暴的实现
      */
@@ -552,6 +560,29 @@ class FilePersistenceList<E>(
         }
     }
 
+    fun finishing(){
+        var index = 0
+        var spaceBytes = 0
+        var offset = 0
+        //因为数据块是按照顺序的，所以找到最后一个有效元素就行 之后的全部废弃
+        while(index<size){
+            val meta = getBlockMetaByOffsetIndex(offset)
+
+            val dataBlockLength = meta.dataSize+ DATA_BLOCK_META_LENGTH
+            if(meta.delete){
+                spaceBytes+=dataBlockLength
+            }else{
+                //移动数据块
+                move(offset + dataAreaPosition,dataBlockLength,-1*spaceBytes)
+                //设置新的偏移索引
+                setOffsetIndexByIndex(index,offset-spaceBytes)
+                index++
+            }
+            offset+=dataBlockLength
+        }
+
+
+    }
     /**
      * 返回的list不是PersistenceList!!!!!!
      */
