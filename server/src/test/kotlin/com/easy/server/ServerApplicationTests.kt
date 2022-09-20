@@ -145,4 +145,20 @@ class ServerApplicationTests {
 
 
     }
+    @Test
+    fun fileTest5() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(Data::class.java))
+        persistenceList.add(Data("str:: /",1))
+        var stopWatch=StopWatch()
+        stopWatch.start()
+        for (i in 0..100){
+            for (j in 0..1000){
+                persistenceList.add(Data("str:: $i $j",i+j))
+            }
+        }
+        stopWatch.stop()
+        println(stopWatch.totalTimeMillis)
+    }
 }

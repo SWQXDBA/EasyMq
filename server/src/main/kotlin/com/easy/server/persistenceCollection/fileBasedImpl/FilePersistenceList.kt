@@ -1,7 +1,10 @@
 package com.easy.server.persistenceCollection.fileBasedImpl
 
-import com.easy.server.persistenceCollection.PersistenceList
-import com.easy.server.persistenceCollection.Serializer
+import com.easy.server.persistenceCollection.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.io.IOException
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -9,15 +12,19 @@ import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.concurrent.thread
 import kotlin.io.path.exists
 
 /**
  * offsetIndex: 偏移索引，表示数据的数据区偏移量
  * index: 表示第几个元素
+ * 最大文件大小为Int.MAX_VALUE
  */
 class FilePersistenceList<E>(
-    val filePath: String,
-    val serializer: Serializer<E>
+    filePath: String,
+    val serializer: Serializer<E>,
+    val autoForceMills :Long= 10,
+    val forcePerOption:Boolean = false
 ) : PersistenceList<E> {
     //数据块原信息
     data class BlockMetaData(
@@ -31,7 +38,7 @@ class FilePersistenceList<E>(
     )
 
 
-    var fileMapper: MappedByteBuffer
+    var fileMapper: FileMapper
 
     /**
      * 表示4个字节
@@ -45,17 +52,16 @@ class FilePersistenceList<E>(
     var fileSize = 1024 * 1024L
 
     override var size: Int
-        get() = fileMapper.position(SIZE_POSITION).asIntBuffer().get()
+        get() = fileMapper.position(SIZE_POSITION).readInt()
         set(value) {
-
-            fileMapper.position(SIZE_POSITION).asIntBuffer().put(value)
+            fileMapper.position(SIZE_POSITION).writeInt(value)
         }
 
 
      var indexCap: Int
-        get() = fileMapper.position(INDEX_CAP_POSITION).asIntBuffer().get()
+        get() = fileMapper.position(INDEX_CAP_POSITION).readInt()
        private set(value) {
-            fileMapper.position(INDEX_CAP_POSITION).asIntBuffer().put(value)
+            fileMapper.position(INDEX_CAP_POSITION).writeInt(value)
         }
 
     /**
@@ -123,20 +129,21 @@ class FilePersistenceList<E>(
 
         //数据块元数据所占大小
         val DATA_BLOCK_META_LENGTH = 9
+        //最大文件大小
+        val MAX_FILE_SIZE = Int.MAX_VALUE
     }
 
 
     init {
-        val path = Path.of(filePath)
-        if (path.exists()) {
-            fileSize = Files.size(path)
-
-        }
-        fileMapper =
-            FileChannel.open(path, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
-                .map(FileChannel.MapMode.READ_WRITE, 0, fileSize)
-
-
+       fileMapper = MemoryMapMapper(filePath,fileSize)
+       // fileMapper = RandomAccessFileMapper(filePath,fileSize)
+        fileSize = fileMapper.fileSize
+       GlobalScope.launch {
+           while(true){
+               delay(autoForceMills)
+               fileMapper.force()
+           }
+       }
     }
 
     /**
@@ -162,13 +169,13 @@ class FilePersistenceList<E>(
         //数据块在整个文件中的偏移量
         val dataBlockFilePosition = offsetIndex + dataAreaPosition
 
-        val delete = fileMapper.position(dataBlockFilePosition + DELETE_OFFSET).get() == 1.toByte()
+        val delete = fileMapper.position(dataBlockFilePosition + DELETE_OFFSET).readByte() == 1.toByte()
         val dataHashcode =
-            fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().get()
+            fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).readInt()
 
 
 
-        val dataSize = fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().get()
+        val dataSize = fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).readInt()
 
 
         return BlockMetaData(delete, dataHashcode, dataSize, dataBlockFilePosition + DATA_OFFSET)
@@ -183,18 +190,19 @@ class FilePersistenceList<E>(
 
     /**
      * 扩容文件为1.5倍
+     *  throw IOException 当文件无法扩容
      */
     private fun resizeFile() {
+        if(this.fileSize>=MAX_FILE_SIZE){
+            throw IOException("File can't resize because it is too large.Max size is $MAX_FILE_SIZE bytes")
+        }
+        if(this.fileSize * 1.5>=MAX_FILE_SIZE){
+            this.fileSize = MAX_FILE_SIZE.toLong()
+        }else{
+            this.fileSize = (this.fileSize * 1.5).toLong()
+        }
 
-        fileSize = (fileSize * 1.5).toLong()
-
-
-        fileMapper = FileChannel.open(
-            Path.of(filePath),
-            StandardOpenOption.CREATE,
-            StandardOpenOption.READ,
-            StandardOpenOption.WRITE
-        ).map(FileChannel.MapMode.READ_WRITE, 0, fileSize)
+        fileMapper.fileSize = this.fileSize
     }
 
     /**
@@ -221,8 +229,8 @@ class FilePersistenceList<E>(
         }
         val temp = ByteArray(length)
 
-        fileMapper.position(position).get(temp)
-        fileMapper.position(position + step).put(temp)
+        fileMapper.position(position).readBytes(temp)
+        fileMapper.position(position + step).writeBytes(temp)
     }
 
     /**
@@ -244,7 +252,7 @@ class FilePersistenceList<E>(
      */
     private fun getOffsetIndexByIndex(index: Int): Int {
 
-        return fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).asIntBuffer().get()
+        return fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).readInt()
     }
 
     /**
@@ -252,7 +260,7 @@ class FilePersistenceList<E>(
      * index: 第几个元素
      */
     private fun setOffsetIndexByIndex(index: Int, offsetIndex: Int) {
-        fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).asIntBuffer().put(offsetIndex)
+        fileMapper.position(OFFSET_INDEX_POSITION + index * intByteSize).writeInt(offsetIndex)
 
   }
 
@@ -269,7 +277,7 @@ class FilePersistenceList<E>(
 
         val arr = ByteArray(length)
         fileMapper.position(position)
-        fileMapper.get(arr)
+        fileMapper.readBytes(arr)
         return arr
     }
 
@@ -381,11 +389,11 @@ class FilePersistenceList<E>(
 
         //插入元数据
         val dataBlockFilePosition = getDataBlockFilePositionByOffsetIndex(elementOffsetIndex)
-        fileMapper.position(dataBlockFilePosition).put(0)
-        fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).asIntBuffer().put(element.hashCode())
-        fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).asIntBuffer().put(elementBytes.size)
+        fileMapper.position(dataBlockFilePosition).writeByte(0)
+        fileMapper.position(dataBlockFilePosition + DATA_HASHCODE_OFFSET).writeInt(element.hashCode())
+        fileMapper.position(dataBlockFilePosition + DATA_SIZE_OFFSET).writeInt(elementBytes.size)
         //插入数据
-        fileMapper.position(dataBlockFilePosition + DATA_OFFSET).put(elementBytes)
+        fileMapper.position(dataBlockFilePosition + DATA_OFFSET).writeBytes(elementBytes)
 
         /**开始插入偏移索引*/
         //修改后面元素的偏移索引值
@@ -403,6 +411,7 @@ class FilePersistenceList<E>(
         //设置元素的偏移索引
         setOffsetIndexByIndex(index, elementOffsetIndex)
            size += 1
+
     }
 
     override fun addAll(index: Int, elements: Collection<E>): Boolean {
@@ -461,7 +470,7 @@ class FilePersistenceList<E>(
         val element = serializer.fromBytes(getByteArray(meta.dataFilePosition, meta.dataSize))
 
         //设置删除标记位
-        fileMapper.position(dataBlockFilePosition).put(1)
+        fileMapper.position(dataBlockFilePosition).writeByte(1)
 
 
         move(
@@ -475,6 +484,7 @@ class FilePersistenceList<E>(
         )
 
         size--
+
         return element
 
     }
@@ -482,7 +492,7 @@ class FilePersistenceList<E>(
     private fun printIndexes(){
         fileMapper.position(OFFSET_INDEX_POSITION)
         for(i in 0 until size){
-            print("${fileMapper.position(OFFSET_INDEX_POSITION + i * intByteSize).asIntBuffer().get()}  ")
+            print("${fileMapper.position(OFFSET_INDEX_POSITION + i * intByteSize).readInt()}  ")
         }
         println()
     }
