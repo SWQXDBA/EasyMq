@@ -500,9 +500,7 @@ class FilePersistenceList<E>(
      * 粗暴的实现
      */
     override fun retainAll(elements: Collection<E>): Boolean {
-        removeAll(elements)
-        addAll(elements)
-        return true
+      return retainAll(elements,iterator())
     }
 
     override fun set(index: Int, element: E): E {
@@ -570,7 +568,8 @@ class FilePersistenceList<E>(
         }
     }
 
-    fun finishing(){
+    fun compress(){
+
         var index = 0
         var spaceBytes = 0
         var offset = 0

@@ -1,10 +1,10 @@
 package com.easy.server.persistenceCollection.fileBasedImpl
 
 import com.easy.server.persistenceCollection.*
-import javax.xml.crypto.Data
+import kotlin.math.abs
 import kotlin.properties.Delegates
 
-class FilePersistenceMap<K, V>(
+open class FilePersistenceMap<K, V>(
     filePath: String,
     val keySerializer: Serializer<K>,
     val valueSerializer: Serializer<V>,
@@ -16,31 +16,37 @@ class FilePersistenceMap<K, V>(
 
     companion object {
         //文件类型标记
-        val TYPE_MARK = 0
+        const val TYPE_MARK = 0
 
         //记录索引数组的容量
-        val CAP = 8
+        const val CAP = 8
 
 
         //记录元素数量
-        val SIZE = 12
+        const val SIZE = 12
 
         //记录索引数组的位置
-        val INDEX_ARRAY_Position = 16
+        const val INDEX_ARRAY_Position = 16
 
         //记录文件已使用的字节大小
-        val USAGE = 24
+        const val USAGE = 24
 
         //保留位
-        val RESERVED = 32
+        const val RESERVED = 32
 
         //数据区起始位置
-        val DATA_AREA_START = 48
+        const val DATA_AREA_START = 48
 
+        //扩容因子
+        const val expansionPercent = 0.75
+
+        //遍历方式切换阈值
+        const val batchForeachMinSize = 100
 
         object DATA_AREA {
+            /**HEADER**/
             //除了数据本身外其他信息所占空间
-            const val META_SIZE: Long = 40
+            const val META_LENGTH: Long = 37
 
             //delete标志位 1代表删除
             const val DELETE_MARK = 0
@@ -48,6 +54,7 @@ class FilePersistenceMap<K, V>(
             //数据大小
             const val DATA_SIZE = 1
 
+            /**HEADER END**/
             //指针
             const val POINTER = 9
 //
@@ -55,6 +62,8 @@ class FilePersistenceMap<K, V>(
 //            val NEXT_POINTER = 17
 
             //key的hashcode
+
+
             const val KEY_HASHCODE = 25
 
             //key的大小
@@ -95,12 +104,62 @@ class FilePersistenceMap<K, V>(
         val NULL_POINTER: Long = 0;
     }
 
-    inner class IndexArray(val position: Long, val cap: Int) {
-        operator fun get(index: Int): DoublePointer {
-            return DoublePointer(position + INDEX_ARRAY.ARRAY_START + index * LongBytesSize)
-        }
+    fun computeIndexArraySize(cap: Int): Long {
+        return (INDEX_ARRAY.ARRAY_START + cap * IndexPointer.POINTER_LENGTH).toLong()
     }
 
+    inner class IndexArray(val position: Long, val cap: Int) {
+
+        val head: Header
+            get() = Header(position)
+
+
+        operator fun get(index: Int): DoublePointer {
+            return DoublePointer(position + INDEX_ARRAY.ARRAY_START + index * IndexPointer.POINTER_LENGTH)
+        }
+
+//        override fun toString(): String {
+//
+//
+//            for (i in 0 until cap) {
+//                print("$i: {${this[i].prevValue}<->${this[i].nextValue}} ")
+//            }
+//
+//            return ""
+//        }
+
+    }
+
+
+    /**
+     * 表示一个DataBlock 或者IndexArray的开头部分
+     */
+    inner class Header(val position: Long) {
+
+        var delete: Boolean
+            get() = fileMapper.position(position + DATA_AREA.DELETE_MARK).readByte() != 0.toByte()
+            set(value) {
+                val v: Byte = if (value) 1 else 0
+                fileMapper.position(position + DATA_AREA.DELETE_MARK).writeByte(v)
+            }
+
+        var dataSize: Long
+            get() {
+
+                return fileMapper.position(position + DATA_AREA.DATA_SIZE).readLong()
+            }
+            set(value) {
+                fileMapper.position(position + DATA_AREA.DATA_SIZE).writeLong(value)
+            }
+
+        fun isIndexArray(): Boolean {
+            return position == indexArrayPosition
+        }
+
+        val next: Header
+            get() = Header(position + dataSize)
+
+    }
 
     inner class DataBlock private constructor() {
         var position by Delegates.notNull<Long>()
@@ -110,16 +169,22 @@ class FilePersistenceMap<K, V>(
          */
         constructor(position: Long) : this() {
             this.position = position
+
         }
+
 
         /**
          * 创建一个不存在的节点，为其分配空间
          */
         constructor(key: K, value: V) : this() {
+
+
             val keyBytes = keySerializer.toBytes(key)
             val valueBytes = valueSerializer.toBytes(value)
 
-            this.position = alloc(keyBytes.size + valueBytes.size + DATA_AREA.META_SIZE)
+            val size = keyBytes.size + valueBytes.size + DATA_AREA.META_LENGTH
+
+            this.position = alloc(size)
 
 
             this.delete = false
@@ -127,10 +192,14 @@ class FilePersistenceMap<K, V>(
             keySize = keyBytes.size
             valueSize = valueBytes.size
 
+            dataSize = size
+
             hashCode = key.hashCode()
 
             fileMapper.position(keyStart).writeBytes(keyBytes)
             fileMapper.position(valueStart).writeBytes(valueBytes)
+
+
 
 
         }
@@ -145,12 +214,14 @@ class FilePersistenceMap<K, V>(
                 fileMapper.position(position + DATA_AREA.DELETE_MARK).writeByte(v)
             }
 
-        val pointer: DoublePointer by lazy { DoublePointer(position + DATA_AREA.POINTER) }
+        val pointer: DoublePointer get() = DoublePointer(position + DATA_AREA.POINTER)
 
         var dataSize: Long
             get() = fileMapper.position(position + DATA_AREA.DATA_SIZE).readLong()
             private set(value) {
+
                 fileMapper.position(position + DATA_AREA.DATA_SIZE).writeLong(value)
+
             }
 
         var keySize: Int
@@ -178,7 +249,7 @@ class FilePersistenceMap<K, V>(
             get() = keyStart + keySize
 
         val key: K
-            get() = keySerializer.fromBytes(fileMapper.byteArrayAt(keyStart, keySize))
+            get() = keySerializer.fromBytes(fileMapper.byteArrayAt(keyStart, keySize))!!
 
         val value: V
             get() {
@@ -253,7 +324,6 @@ class FilePersistenceMap<K, V>(
     var indexArrayPosition: Long
         get() = fileMapper.position(INDEX_ARRAY_Position).readLong()
         set(value) {
-
             fileMapper.position(INDEX_ARRAY_Position).writeLong(value)
         }
 
@@ -264,11 +334,17 @@ class FilePersistenceMap<K, V>(
      * 分配新的空间，返回空间的起始位置
      */
     fun alloc(size: Long): Long {
+
+
+
         val start = usageFileSize
-        while (start + size > fileSize) {
+        while (start + size >= fileSize) {
             resizeFile()
         }
+
         usageFileSize = start + size
+
+
         return start
     }
 
@@ -277,17 +353,24 @@ class FilePersistenceMap<K, V>(
         //设置文件类型
         fileMapper.position(TYPE_MARK).writeLong(FileType.MutableMap)
         cap = initCap
+
+
         //分配索引数组
-        val indexArraySize = (IndexPointer.POINTER_LENGTH * cap.toLong())
+        val indexArraySize = computeIndexArraySize(initCap)
         val alloc = alloc(indexArraySize)
         indexArrayPosition = alloc
+        indexArray.head.dataSize = indexArraySize
     }
 
+    /**
+     * 给hash array扩容
+     */
     fun expansion(newCap: Int) {
+
         val oldPosition = indexArrayPosition
         val oldCap = cap
         cap = newCap
-        val diff = (newCap - oldCap) * IndexPointer.POINTER_LENGTH.toLong()
+        val diff = computeIndexArraySize(newCap)
         while (usageFileSize + diff > fileSize) {
             resizeFile()
         }
@@ -296,20 +379,29 @@ class FilePersistenceMap<K, V>(
         indexArrayPosition = newPosition
 
         val newArray = IndexArray(newPosition, newCap)
+        newArray.head.dataSize = computeIndexArraySize(newCap)
+
         val oldArray = IndexArray(oldPosition, oldCap)
         for (i in 0 until oldCap) {
             var next = oldArray[i].next
             while (!next.isNull) {
-                val current = next;
+                val current = next
+
                 next = current.next
                 current.nextValue = NULL_POINTER
                 current.prevValue = NULL_POINTER
+
                 insert(DataBlock(current), newArray)
             }
         }
+
+
     }
 
     private fun insert(dataBlock: DataBlock, indexArray: IndexArray) {
+
+
+        size++
         val hashIndex = hash(dataBlock.hashCode, indexArray.cap)
         val indexPointerNode = indexArray[hashIndex]
 
@@ -321,9 +413,10 @@ class FilePersistenceMap<K, V>(
         }
         //hash冲突了
         else {
-            var lastPointer = indexPointerNode.next
-            while (!lastPointer.isNull){
+            var lastPointer = indexPointerNode
+            do {
 
+                lastPointer = lastPointer.next
                 val currentOldData = DataBlock(lastPointer)
                 //同key 进行替换
                 if (currentOldData.hashCode == dataBlock.hashCode && currentOldData.key == dataBlock.key) {
@@ -340,26 +433,25 @@ class FilePersistenceMap<K, V>(
                         oldPointer.next.prev = newPointer
                         newPointer.next = oldPointer.next
                     }
-
                     return
                 }
-                lastPointer = lastPointer.next
-            }
+            } while (lastPointer.hasNext)
             //没有重复的节点
             lastPointer.next = newPointer
             newPointer.prev = lastPointer
         }
+
     }
 
 
     private fun hash(hashCode: Int, cap: Int): Int {
-        return hashCode % cap
+        return abs(hashCode) % cap
     }
 
     override var size: Int
-        get() = fileMapper.position(SIZE).readLong().toInt()
+        get() = fileMapper.position(SIZE).readInt()
         set(value) {
-            fileMapper.position(SIZE).writeLong(value.toLong())
+            fileMapper.position(SIZE).writeInt(value)
         }
     override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
         get() {
@@ -391,7 +483,11 @@ class FilePersistenceMap<K, V>(
         get() {
             val mutableListOf = mutableListOf<V>()
             forEachEntry {
-                mutableListOf.add(it.value)
+                val value = it.value
+                if (value != null) {
+                    mutableListOf.add(value)
+                }
+                return@forEachEntry false
             }
             return mutableListOf
         }
@@ -406,6 +502,11 @@ class FilePersistenceMap<K, V>(
      * block：  返回false表示遍历终止
      */
     private fun forEachEntry(block: (DataBlock) -> Boolean) {
+        if (size > batchForeachMinSize) {
+            batchForEachEntry(block)
+            return
+        }
+
         for (hash in 0 until cap) {
             var pointer = indexArray[hash]
             while (pointer.hasNext) {
@@ -416,6 +517,66 @@ class FilePersistenceMap<K, V>(
                 }
             }
         }
+    }
+
+    /**
+     * 顺序遍历方法 而不是根据索引找，因为顺序访问磁盘速度更快，所以当元素较多时切换到此方法快速遍历
+     * block：  返回false表示遍历终止
+     */
+    private fun batchForEachEntry(block: (DataBlock) -> Boolean) {
+        var head = Header(DATA_AREA_START.toLong())
+        while (head.dataSize != 0L) {
+
+            if (head.delete || head.isIndexArray()) {
+                head = head.next
+                continue
+            } else {
+                if (!block(DataBlock(head.position))) {
+                    return
+                }
+            }
+            head = head.next
+        }
+    }
+
+    /**
+     * 压缩文件
+     * return 压缩了多少bytes
+     */
+    fun compress(): Long {
+
+        var space = 0L
+        var head = Header(DATA_AREA_START.toLong())
+
+        while (head.dataSize != 0L) {
+            val next = head.next
+            if (head.delete) {
+
+                space += head.dataSize
+            } else {
+                //如果这个数据块是索引数组
+                if (head.isIndexArray()) {
+                    for (i in 0 until cap) {
+                        val pointer = indexArray[i]
+                        if (pointer.hasNext) {
+                            pointer.next.prevValue = pointer.position - space
+                        }
+                    }
+                    indexArrayPosition = head.position - space
+                } else {
+                    //是普通数据块 则修改前后指针
+                    val pointer = DataBlock(head.position).pointer
+                    pointer.prev.nextValue = pointer.position - space
+                    if (pointer.hasNext) {
+                        pointer.next.prevValue = pointer.position - space
+                    }
+                }
+                fileMapper.moveBytes(head.position, head.dataSize.toInt(), -space)
+            }
+            head = next
+        }
+        usageFileSize -= space
+        return space
     }
 
     override fun containsValue(value: V): Boolean {
@@ -457,24 +618,40 @@ class FilePersistenceMap<K, V>(
             it.delete = true
             return@forEachEntry true
         }
-        for (i in 0 until size) {
+        for (i in 0 until cap) {
             indexArray[i].nextValue = NULL_POINTER
+        }
+        size = 0
+    }
+
+
+    override fun put(key: K, value: V): V? {
+        if (size >= cap * expansionPercent) {
+            expansion(cap * 2)
+        }
+
+
+        val dataBlock = DataBlock(key, value)
+
+
+
+        insert(dataBlock, IndexArray(indexArrayPosition, cap))
+
+
+
+        return value
+    }
+
+    override fun putAll(from: Map<out K, V>) {
+        from.forEach { k, v ->
+            put(k, v)
         }
 
 
     }
 
-    override fun put(key: K, value: V): V? {
-        val dataBlock = DataBlock(key, value)
-        insert(dataBlock, IndexArray(indexArrayPosition, cap))
-        return value
-    }
-
-    override fun putAll(from: Map<out K, V>) {
-        TODO("Not yet implemented")
-    }
-
     override fun remove(key: K): V? {
+        size--
         val targetDataBlock = find(key) ?: return null
         val pointer = targetDataBlock.pointer
         pointer.prev.next = pointer.next
@@ -486,5 +663,14 @@ class FilePersistenceMap<K, V>(
 
     }
 
+    override fun toString(): String {
+        val stringBuilder = StringBuilder()
+        stringBuilder.append("{")
+        forEach { t, u ->
+            stringBuilder.append("{$t : $u} ")
+        }
+        stringBuilder.append("}")
+        return stringBuilder.toString()
+    }
 
 }

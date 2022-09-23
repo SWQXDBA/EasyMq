@@ -122,7 +122,7 @@ class ServerApplicationTests {
         stopWatch.start()
         println(persistenceList.usageFileSize)
 
-        persistenceList.finishing()
+        persistenceList.compress()
         println(persistenceList.usageFileSize)
         stopWatch.stop()
         println(stopWatch.totalTimeMillis)
@@ -182,9 +182,54 @@ class ServerApplicationTests {
         map["123"] = 123
         map["123"] = 456
 
+        println("map.containsKey(\"12\") :${map.containsKey("12")}")
+        println("map.containsKey(\"123\") :${map.containsKey("123")}")
+        println("map.containsValue(123) :${map.containsValue(123)}")
+        println("map.containsValue(456) :${map.containsValue(456)}")
+
         map.forEach { t, u ->
             println("$t : $u")
         }
+
+
+        println("remove 12 ${map.remove("12")} ")
+        map.forEach { t, u ->
+            println("$t : $u")
+        }
+        println("remove 123 ${map.remove("123")} ")
+        map.forEach { t, u ->
+            println("$t : $u")
+        }
+
+        for (i in 0..10000){
+            map["$i"] = i
+        }
+        println("size ${map.size}")
+        println(map["50"])
+        val stopWatch = StopWatch()
+        stopWatch.start()
+        println("start...")
+        map.clear()
+        stopWatch.stop()
+        println("time: ${stopWatch.totalTimeMillis}")
+        println("clear over")
+        println(map)
+
+
+
+        stopWatch.start()
+        println("start...")
+
+
+
+
+        println("file usageFileSize ${map.usageFileSize}")
+        println("fileSize ${map.fileSize}")
+        println("compress size is ${map.compress()}")
+        println("file usageFileSize after compress is ${map.usageFileSize}")
+
+        stopWatch.stop()
+        println("compress use ${stopWatch.totalTimeMillis}")
 
     }
     @Test

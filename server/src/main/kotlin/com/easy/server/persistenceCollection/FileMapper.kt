@@ -18,12 +18,28 @@ interface FileMapper {
      * 设置写入位置
      */
     fun position(position: Long): FileMapper
+
     /**
      * 设置写入位置
      */
     fun position(position: Int): FileMapper
-    fun writeBytes(value:ByteArray)
-    fun writeByte(value:Byte)
+
+    /**
+     * 把从 position开始length个字节 移动step个字节
+     * position:起始位置 step: 移动多少个字节 正数代表后移 负数代表前移
+     */
+    fun moveBytes(position: Long, length: Int, step: Long) {
+        if (length == 0 || step == 0L) {
+            return
+        }
+        val temp = ByteArray(length)
+        position(position).readBytes(temp)
+        position(position + step).writeBytes(temp)
+
+    }
+
+    fun writeBytes(value: ByteArray)
+    fun writeByte(value: Byte)
     fun writeInt(value: Int)
     fun writeLong(value: Long)
     fun writeDouble(value: Double)
@@ -32,11 +48,11 @@ interface FileMapper {
     fun readInt(): Int
     fun readLong(): Long
     fun readDouble(): Double
-    fun readByte():Byte
-    fun readBytes(value:ByteArray)
+    fun readByte(): Byte
+    fun readBytes(value: ByteArray)
     fun force()
 
-     fun byteArrayAt(position: Long, length: Int): ByteArray {
+    fun byteArrayAt(position: Long, length: Int): ByteArray {
         val arr = ByteArray(length)
         position(position)
         readBytes(arr)
@@ -67,7 +83,7 @@ class MemoryMapMapper(
         val path = Path.of(filePath)
         if (path.exists()) {
             this.fileSize = Files.size(path)
-        }else{
+        } else {
             this.fileSize = initFileSize
         }
     }
@@ -82,7 +98,7 @@ class MemoryMapMapper(
     }
 
     override fun position(position: Int): FileMapper {
-       return position(position.toLong())
+        return position(position.toLong())
     }
 
     override fun writeBytes(value: ByteArray) {
@@ -122,7 +138,7 @@ class MemoryMapMapper(
     }
 
     override fun readBytes(value: ByteArray) {
-         fileMapper.get(value)
+        fileMapper.get(value)
     }
 
     override fun force() {
@@ -130,13 +146,15 @@ class MemoryMapMapper(
     }
 
 }
+
 /**
  * 基于RandomAccessFile的实现 支持Long.MAX_VALUE
  */
-class RandomAccessFileMapper(  filePath: String,
-                               initFileSize: Long
-):FileMapper{
-    var randomAccessFile:RandomAccessFile
+class RandomAccessFileMapper(
+    filePath: String,
+    initFileSize: Long
+) : FileMapper {
+    var randomAccessFile: RandomAccessFile
     override var fileSize: Long
         get() = randomAccessFile.length()
         set(value) {
@@ -145,13 +163,14 @@ class RandomAccessFileMapper(  filePath: String,
         }
 
     init {
-        if(Files.exists(Path.of(filePath))){
-            randomAccessFile = RandomAccessFile(filePath,"rw")
-        }else{
-            randomAccessFile = RandomAccessFile(filePath,"rw")
+        if (Files.exists(Path.of(filePath))) {
+            randomAccessFile = RandomAccessFile(filePath, "rw")
+        } else {
+            randomAccessFile = RandomAccessFile(filePath, "rw")
             fileSize = initFileSize
         }
     }
+
     override fun position(position: Long): FileMapper {
         randomAccessFile.seek(position)
         return this
@@ -182,11 +201,11 @@ class RandomAccessFileMapper(  filePath: String,
     }
 
     override fun readInt(): Int {
-      return  randomAccessFile.readInt()
+        return randomAccessFile.readInt()
     }
 
     override fun readLong(): Long {
-       return randomAccessFile.readLong()
+        return randomAccessFile.readLong()
     }
 
     override fun readDouble(): Double {
@@ -194,7 +213,7 @@ class RandomAccessFileMapper(  filePath: String,
     }
 
     override fun readByte(): Byte {
-       return randomAccessFile.readByte()
+        return randomAccessFile.readByte()
     }
 
     override fun readBytes(value: ByteArray) {

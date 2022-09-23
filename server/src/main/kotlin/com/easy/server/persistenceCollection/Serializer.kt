@@ -1,12 +1,22 @@
 package com.easy.server.persistenceCollection
 
-import com.fasterxml.jackson.core.type.TypeReference
+
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.type.TypeFactory
+
 
 interface Serializer<T>{
     fun toBytes(obj:T):ByteArray
     fun fromBytes(bytes:ByteArray):T
+}
+object unitSerializer:Serializer<Unit>{
+
+    override fun toBytes(obj: Unit): ByteArray {
+        return ByteArray(0)
+    }
+    override fun fromBytes(bytes: ByteArray): Unit {
+        return Unit
+    }
+
 }
 class JacksonSerializer<T>(
     val type:Class<T>
