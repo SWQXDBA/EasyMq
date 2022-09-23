@@ -1,6 +1,7 @@
 package com.easy.server.persistenceCollection.fileBasedImpl
 
 import com.easy.server.persistenceCollection.*
+import kotlin.properties.Delegates
 
 class FilePersistenceMap<K, V>(
     filePath: String,
@@ -37,17 +38,20 @@ class FilePersistenceMap<K, V>(
 
 
         object DATA_AREA {
+            //除了数据本身外其他信息所占空间
+            val META_SIZE:Long = 40
+
             //delete标志位 1代表删除
             val DELETE_MARK = 0
 
             //数据大小
             val DATA_SIZE = 1
 
-            //前驱指针
-            val PREV_POINTER = 9
-
-            //后继指针
-            val NEXT_POINTER = 17
+            //指针
+            val POINTER = 9
+//
+//            //后继指针
+//            val NEXT_POINTER = 17
 
             //key的hashcode
             val KEY_HASHCODE = 25
@@ -90,20 +94,46 @@ class FilePersistenceMap<K, V>(
         val NULL_POINTER: Long = 0;
     }
 
-    inner class IndexPointerNode(val index: Long) {
-
-        var next: Long
-            get() = fileMapper
-                .position(INDEX_ARRAY_Position + INDEX_ARRAY.ARRAY_START + index * LongBytesSize)
-                .readLong()
-            set(value) {
-                fileMapper
-                    .position(INDEX_ARRAY_Position + INDEX_ARRAY.ARRAY_START + index * LongBytesSize)
-                    .writeLong(value)
-            }
+    inner class IndexArray(val position: Long, val cap: Long) {
+        operator fun get(index: Long): DoublePointer {
+            return DoublePointer(position + INDEX_ARRAY.ARRAY_START + index * LongBytesSize)
+        }
     }
 
-    inner class DataBlock(val position: Long) {
+
+    inner class DataBlock private constructor() {
+         var  position by Delegates.notNull<Long>()
+
+        /**
+         * 创建一个已有的节点映射
+         */
+        constructor(position: Long) :this(){
+            this.position = position
+        }
+
+        /**
+         * 创建一个不存在的节点，为其分配空间
+         */
+        constructor(key: K, value: V) : this() {
+            val keyBytes = keySerializer.toBytes(key)
+            val valueBytes = valueSerializer.toBytes(value)
+            this.position = alloc(keyBytes.size+valueBytes.size+DATA_AREA.META_SIZE)
+            this.delete = false
+            keySize = keyBytes.size
+
+
+            valueSize = valueBytes.size
+            hashCode = key.hashCode()
+
+            fileMapper.position(keyStart).writeBytes(keyBytes)
+            fileMapper.position(valueStart).writeBytes(valueBytes)
+
+
+        }
+
+        //根据指针位置 推算出数据块的起始位置
+        constructor(pointer: DoublePointer) : this(pointer.position - DATA_AREA.POINTER)
+
         var delete: Boolean
             get() = fileMapper.position(position + DATA_AREA.DELETE_MARK).readByte() != 0.toByte()
             set(value) {
@@ -111,45 +141,80 @@ class FilePersistenceMap<K, V>(
                 fileMapper.position(position + DATA_AREA.DELETE_MARK).writeByte(v)
             }
 
-        val dataSize: Long
+        val pointer: DoublePointer = DoublePointer(position + DATA_AREA.POINTER)
+
+        var dataSize: Long
             get() = fileMapper.position(position + DATA_AREA.DATA_SIZE).readLong()
+            private set(value) {
+                fileMapper.position(position + DATA_AREA.DATA_SIZE).writeLong(value)
+            }
 
-        val keySize: Int
+        var keySize: Int
             get() = fileMapper.position(position + DATA_AREA.KEY_SIZE).readInt()
-        val valueSize: Int
+            private set(value) {
+                fileMapper.position(position + DATA_AREA.KEY_SIZE).writeInt(value)
+            }
+
+        var valueSize: Int
             get() = fileMapper.position(position + DATA_AREA.VALUE_SIZE).readInt()
-        val hashCode: Long
-            get() = fileMapper.position(position + DATA_AREA.KEY_HASHCODE).readLong()
-
-        var prev: Long
-            get() = fileMapper
-                .position(position + DATA_AREA.PREV_POINTER)
-                .readLong()
-            set(value) {
-                fileMapper
-                    .position(position + DATA_AREA.PREV_POINTER)
-                    .writeLong(value)
+            private set(value) {
+                fileMapper.position(position + DATA_AREA.VALUE_SIZE).writeInt(value)
+            }
+        var hashCode: Int
+            get() = fileMapper.position(position + DATA_AREA.KEY_HASHCODE).readInt()
+            private set(value) {
+                fileMapper.position(position + DATA_AREA.KEY_HASHCODE).writeInt(value)
             }
 
-        var next: Long
-            get() = fileMapper
-                .position(position + DATA_AREA.NEXT_POINTER)
-                .readLong()
-            set(value) {
-                fileMapper
-                    .position(position + DATA_AREA.NEXT_POINTER)
-                    .writeLong(value)
-            }
+
         private val keyStart: Long
-            get() = fileMapper.position(position + DATA_AREA.KEY_START).readLong()
+            get() = position + DATA_AREA.KEY_START
+
         private val valueStart: Long
-            get() = keyStart+keySize
+            get() = keyStart + keySize
+
         val key: K
             get() = keySerializer.fromBytes(fileMapper.byteArrayAt(keyStart, keySize))
+
         val value: V
             get() {
                 return valueSerializer.fromBytes(fileMapper.byteArrayAt(valueStart, valueSize))
             }
+    }
+
+
+    /**
+     * 双向指针
+     */
+    inner class DoublePointer(val position: Long) {
+
+
+        var prev: DoublePointer
+            get() = DoublePointer(prevValue)
+            set(value) {
+                prevValue = value.position
+            }
+        var next: DoublePointer
+            get() = DoublePointer(nextValue)
+            set(value) {
+                nextValue = value.position
+            }
+
+        var prevValue: Long
+            get() = fileMapper.position(position + IndexPointer.PREV_POINTER).readLong()
+            set(value) {
+                fileMapper.position(position + IndexPointer.PREV_POINTER).writeLong(value)
+            }
+
+        var nextValue: Long
+            get() = fileMapper.position(position + IndexPointer.NEXT_POINTER).readLong()
+            set(value) {
+                fileMapper.position(position + IndexPointer.NEXT_POINTER).writeLong(value)
+            }
+        val hasPrev: Boolean = prevValue == NULL_POINTER
+        val hasNext: Boolean = nextValue == NULL_POINTER
+        val isNull: Boolean = position == NULL_POINTER
+
     }
 
     init {
@@ -204,21 +269,56 @@ class FilePersistenceMap<K, V>(
     fun expansion(newCap: Long) {
         val oldPosition = indexArrayPosition
         val oldCap = cap
+        cap = newCap
         val dif = newCap - oldCap
         while (usageFileSize + dif > fileSize) {
             resizeFile()
         }
 
         val newPosition = alloc(newCap)
+        indexArrayPosition = newPosition
+
+        val newArray = IndexArray(newPosition, newCap)
+        val oldArray = IndexArray(oldPosition, oldCap)
         for (i in 0 until oldCap) {
-            var next = IndexPointerNode(i).next
-            while (next != NULL_POINTER) {
-
+            var next = oldArray[i].next
+            while (!next.isNull) {
+                val current = next;
+                next = current.next
+                current.nextValue = NULL_POINTER
+                current.prevValue = NULL_POINTER
+                insert(DataBlock(current), newArray)
             }
-
         }
+    }
 
+    private fun insert(dataBlock: DataBlock, indexArray: IndexArray) {
+        val hashIndex = hash(dataBlock.hashCode, indexArray.cap)
+        val indexPointerNode = indexArray[hashIndex]
 
+        if (!indexPointerNode.hasNext) {
+            indexPointerNode.next = dataBlock.pointer
+            dataBlock.pointer.prev = indexPointerNode
+        } else {
+            var lastPointer = indexPointerNode.next
+            var next = lastPointer.next
+            while (!next.isNull) {
+                lastPointer = next
+                next = lastPointer.next
+
+                //同key 进行替换
+                val currentData = DataBlock(lastPointer)
+                if(currentData.hashCode==dataBlock.hashCode&& currentData.key==dataBlock.key){
+
+                }
+            }
+            lastPointer.next = dataBlock.pointer
+            dataBlock.pointer.prev = lastPointer
+        }
+    }
+
+    private fun hash(hashCode: Int, cap: Long): Long {
+        return hashCode % cap
     }
 
     override val size: Int
@@ -252,7 +352,10 @@ class FilePersistenceMap<K, V>(
     }
 
     override fun put(key: K, value: V): V? {
-        TODO("Not yet implemented")
+
+        val dataBlock = DataBlock(key, value)
+        insert(dataBlock,IndexArray(indexArrayPosition,cap))
+        return value
     }
 
     override fun putAll(from: Map<out K, V>) {
