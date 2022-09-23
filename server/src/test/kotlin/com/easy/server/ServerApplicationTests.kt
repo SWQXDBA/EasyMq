@@ -13,6 +13,7 @@ import java.nio.file.Files
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.*
 
 @SpringBootTest
 class ServerApplicationTests {
@@ -160,5 +161,14 @@ class ServerApplicationTests {
         }
         stopWatch.stop()
         println(stopWatch.totalTimeMillis)
+    }
+    @Test
+    fun fileTest6() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val randomAccessFile = RandomAccessFile("./test2.txt", "rw")
+        randomAccessFile.setLength(1024)
+        randomAccessFile.close()
+        println(Arrays.toString(Files.readAllBytes(Path.of("./test2.txt"))))
     }
 }

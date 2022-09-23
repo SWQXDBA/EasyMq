@@ -35,6 +35,13 @@ interface FileMapper {
     fun readByte():Byte
     fun readBytes(value:ByteArray)
     fun force()
+
+     fun byteArrayAt(position: Long, length: Int): ByteArray {
+        val arr = ByteArray(length)
+        position(position)
+        readBytes(arr)
+        return arr
+    }
 }
 
 /**
