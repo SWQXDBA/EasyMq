@@ -13,4 +13,4 @@ object FileType {
 
 }
 
-val LongBytesSize = 16
+val LongBytesSize = 8

@@ -10,23 +10,31 @@ import kotlinx.coroutines.launch
 
 abstract class FilePersistenceCollection(
     filePath: String,
-    val autoForceMills :Long= 10,
-    val forcePerOption:Boolean = false
+    val autoForceMills: Long = 10,
+    val forcePerOption: Boolean = false
 ) {
-    lateinit var fileMapper: FileMapper
-    var fileSize:Long by fileMapper::fileSize
-    val initFileSize = 1024*1024L
+    var fileMapper: FileMapper
+
+    var fileSize: Long
+        get() = fileMapper.fileSize
+        set(value) {
+            fileMapper.fileSize = value
+        }
+
+    val initFileSize = 1024 * 1024L
+
     init {
-        fileMapper = MemoryMapMapper(filePath,initFileSize)
+        fileMapper = MemoryMapMapper(filePath, initFileSize)
         // fileMapper = RandomAccessFileMapper(filePath,fileSize)
         GlobalScope.launch {
-            while(true){
+            while (true) {
                 delay(autoForceMills)
                 fileMapper.force()
             }
         }
     }
-    fun resizeFile(magnification:Int = 2){
-        fileSize *=magnification
+
+    fun resizeFile(magnification: Int = 2) {
+        fileSize *= magnification
     }
 }

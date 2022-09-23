@@ -2,15 +2,13 @@ package com.easy.server
 
 import com.easy.server.persistenceCollection.JacksonSerializer
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceList
+import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceMap
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.StopWatch
 import java.io.RandomAccessFile
-import java.nio.ByteBuffer
-import java.nio.IntBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
-import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.*
@@ -170,5 +168,41 @@ class ServerApplicationTests {
         randomAccessFile.setLength(1024)
         randomAccessFile.close()
         println(Arrays.toString(Files.readAllBytes(Path.of("./test2.txt"))))
+    }
+    @Test
+    fun fileTest7() {
+
+        try{
+            Files.delete(Path.of("./test2.txt"))
+        }catch (ignore:Exception){
+
+        }
+        val map :FilePersistenceMap<String,Int> = FilePersistenceMap("./test2.txt",
+            JacksonSerializer(String::class.java), JacksonSerializer(Int::class.java))
+        map["123"] = 123
+        map["123"] = 456
+
+        map.forEach { t, u ->
+            println("$t : $u")
+        }
+
+    }
+    @Test
+    fun fileTest8() {
+
+        class A{
+            fun getInt():Int{
+                println("getInt")
+                return 1;
+            }
+            val num:Int get()= getInt()
+
+        }
+
+        val a = A()
+        a.num
+        a.num
+
+
     }
 }
