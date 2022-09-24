@@ -3,6 +3,7 @@ package com.easy.server
 import com.easy.server.persistenceCollection.JacksonSerializer
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceList
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceMap
+import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceSet
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.util.StopWatch
@@ -20,105 +21,134 @@ class ServerApplicationTests {
     fun fileTest() {
 
         var size = 1024L;
-        var map = FileChannel.open(Path.of("./test.txt"), StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.READ).map(FileChannel.MapMode.READ_WRITE,0,size)
+        var map = FileChannel.open(
+            Path.of("./test.txt"),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.READ
+        ).map(FileChannel.MapMode.READ_WRITE, 0, size)
 
         var current = 0;
-        for(i in 0..1024){
+        for (i in 0..1024) {
             map.position(current)
             map.asIntBuffer().put(i)
-            current+=4
-            if(current>=size){
-                size*=2
-                map = FileChannel.open(Path.of("./test.txt"), StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.READ).map(FileChannel.MapMode.READ_WRITE,0,size)
+            current += 4
+            if (current >= size) {
+                size *= 2
+                map = FileChannel.open(
+                    Path.of("./test.txt"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.READ
+                ).map(FileChannel.MapMode.READ_WRITE, 0, size)
             }
         }
         size = 8
-        map = FileChannel.open(Path.of("./test.txt"), StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.READ).map(FileChannel.MapMode.READ_WRITE,0,size)
+        map = FileChannel.open(
+            Path.of("./test.txt"),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.WRITE,
+            StandardOpenOption.READ
+        ).map(FileChannel.MapMode.READ_WRITE, 0, size)
 
         current = 0;
-        for(i in 0..128){
+        for (i in 0..128) {
             map.position(current)
             map.asIntBuffer().put(-i)
-            current+=4
-            if(current>=size){
-                size*=2
-                map = FileChannel.open(Path.of("./test.txt"), StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.READ).map(FileChannel.MapMode.READ_WRITE,0,size)
+            current += 4
+            if (current >= size) {
+                size *= 2
+                map = FileChannel.open(
+                    Path.of("./test.txt"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.READ
+                ).map(FileChannel.MapMode.READ_WRITE, 0, size)
             }
         }
 
         current = 0;
-        for(i in 0..1024){
+        for (i in 0..1024) {
             map.position(current)
             println(map.asIntBuffer().get())
-            current+=4
-            if(current>=size){
-                size*=2
-                map = FileChannel.open(Path.of("./test.txt"), StandardOpenOption.CREATE,StandardOpenOption.WRITE,StandardOpenOption.READ).map(FileChannel.MapMode.READ_WRITE,0,size)
+            current += 4
+            if (current >= size) {
+                size *= 2
+                map = FileChannel.open(
+                    Path.of("./test.txt"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.READ
+                ).map(FileChannel.MapMode.READ_WRITE, 0, size)
             }
         }
     }
 
-     class Data() {
-         constructor(  str:String?,
-                       age:Int?) : this() {
-             this.str = str
-             this.age = age
+    class Data() {
+        constructor(
+            str: String?,
+            age: Int?
+        ) : this() {
+            this.str = str
+            this.age = age
 
-         }
-         var str:String?=null
-         var age:Int?=null
-         override fun toString(): String {
-             return "Data(str=$str, age=$age)"
-         }
+        }
 
-         override fun equals(other: Any?): Boolean {
-             if (this === other) return true
-             if (other !is Data) return false
+        var str: String? = null
+        var age: Int? = null
+        override fun toString(): String {
+            return "Data(str=$str, age=$age)"
+        }
 
-             if (str != other.str) return false
-             if (age != other.age) return false
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is Data) return false
 
-             return true
-         }
+            if (str != other.str) return false
+            if (age != other.age) return false
 
-         override fun hashCode(): Int {
-             var result = str?.hashCode() ?: 0
-             result = 31 * result + (age ?: 0)
-             return result
-         }
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = str?.hashCode() ?: 0
+            result = 31 * result + (age ?: 0)
+            return result
+        }
 
 
-     }
+    }
+
     @Test
     fun fileTest2() {
         Files.delete(Path.of("./test2.txt"))
-        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(Data::class.java))
-        for (i in 0..3){
-            persistenceList.add(Data("str:: $i",i))
+        val persistenceList = FilePersistenceList("./test2.txt", JacksonSerializer(Data::class.java))
+        for (i in 0..3) {
+            persistenceList.add(Data("str:: $i", i))
         }
         println(persistenceList)
 
-        persistenceList.remove(Data("str:: 2",2))
+        persistenceList.remove(Data("str:: 2", 2))
         println(persistenceList)
 
 
-
     }
+
     @Test
     fun fileTest3() {
         Files.delete(Path.of("./test2.txt"))
-        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(Data::class.java))
-        for (i in 0..10000000){
-            persistenceList.add(Data("str:: $i",i))
+        val persistenceList = FilePersistenceList("./test2.txt", JacksonSerializer(Data::class.java))
+        for (i in 0..10000000) {
+            persistenceList.add(Data("str:: $i", i))
         }
 
         println(persistenceList.usageFileSize)
 
 
-        for (i in 0..955){
+        for (i in 0..955) {
             persistenceList.removeAt(0)
         }
-        var stopWatch=StopWatch()
+        var stopWatch = StopWatch()
         stopWatch.start()
         println(persistenceList.usageFileSize)
 
@@ -127,16 +157,17 @@ class ServerApplicationTests {
         stopWatch.stop()
         println(stopWatch.totalTimeMillis)
     }
+
     @Test
     fun fileTest4() {
         Files.delete(Path.of("./test2.txt"))
-        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(Data::class.java))
-        persistenceList.add(Data("str:: /",1))
-        for (i in 0..100){
-            var stopWatch=StopWatch()
+        val persistenceList = FilePersistenceList("./test2.txt", JacksonSerializer(Data::class.java))
+        persistenceList.add(Data("str:: /", 1))
+        for (i in 0..100) {
+            var stopWatch = StopWatch()
             stopWatch.start()
-            for (j in 0..1000){
-                persistenceList.add(1,Data("str:: $i $j",i+j))
+            for (j in 0..1000) {
+                persistenceList.add(1, Data("str:: $i $j", i + j))
             }
             stopWatch.stop()
             println(stopWatch.totalTimeMillis)
@@ -144,22 +175,24 @@ class ServerApplicationTests {
 
 
     }
+
     @Test
     fun fileTest5() {
 
         Files.delete(Path.of("./test2.txt"))
-        val persistenceList = FilePersistenceList("./test2.txt",JacksonSerializer(Data::class.java))
-        persistenceList.add(Data("str:: /",1))
-        var stopWatch=StopWatch()
+        val persistenceList = FilePersistenceList("./test2.txt", JacksonSerializer(Data::class.java))
+        persistenceList.add(Data("str:: /", 1))
+        var stopWatch = StopWatch()
         stopWatch.start()
-        for (i in 0..100){
-            for (j in 0..1000){
-                persistenceList.add(Data("str:: $i $j",i+j))
+        for (i in 0..100) {
+            for (j in 0..1000) {
+                persistenceList.add(Data("str:: $i $j", i + j))
             }
         }
         stopWatch.stop()
         println(stopWatch.totalTimeMillis)
     }
+
     @Test
     fun fileTest6() {
 
@@ -169,16 +202,19 @@ class ServerApplicationTests {
         randomAccessFile.close()
         println(Arrays.toString(Files.readAllBytes(Path.of("./test2.txt"))))
     }
+
     @Test
     fun fileTest7() {
 
-        try{
+        try {
             Files.delete(Path.of("./test2.txt"))
-        }catch (ignore:Exception){
+        } catch (ignore: Exception) {
 
         }
-        val map :FilePersistenceMap<String,Int> = FilePersistenceMap("./test2.txt",
-            JacksonSerializer(String::class.java), JacksonSerializer(Int::class.java))
+        val map: FilePersistenceMap<String, Int> = FilePersistenceMap(
+            "./test2.txt",
+            JacksonSerializer(String::class.java), JacksonSerializer(Int::class.java)
+        )
         map["123"] = 123
         map["123"] = 456
 
@@ -201,7 +237,7 @@ class ServerApplicationTests {
             println("$t : $u")
         }
 
-        for (i in 0..10000){
+        for (i in 0..10000) {
             map["$i"] = i
         }
         println("size ${map.size}")
@@ -215,12 +251,8 @@ class ServerApplicationTests {
         println("clear over")
         println(map)
 
-
-
         stopWatch.start()
         println("start...")
-
-
 
 
         println("file usageFileSize ${map.usageFileSize}")
@@ -231,23 +263,77 @@ class ServerApplicationTests {
         stopWatch.stop()
         println("compress use ${stopWatch.totalTimeMillis}")
 
+
     }
+
     @Test
     fun fileTest8() {
-
-        class A{
-            fun getInt():Int{
-                println("getInt")
-                return 1;
-            }
-            val num:Int get()= getInt()
+        try {
+            Files.delete(Path.of("./test2.txt"))
+        } catch (ignore: Exception) {
 
         }
+        val map: FilePersistenceMap<String, Int> = FilePersistenceMap(
+            "./test2.txt",
+            JacksonSerializer(String::class.java), JacksonSerializer(Int::class.java)
+        )
 
-        val a = A()
-        a.num
-        a.num
 
+        for (i in 0..40) {
+            map["$i"] = i
+        }
+        println(map)
+        for (i in 5..39) {
+            map.remove("$i")
+        }
+        println(map)
+        println("bef")
+        map.compress()
+        println(map)
+    }
+
+    @Test
+    fun fileTest9() {
+        try {
+            Files.delete(Path.of("./test2.txt"))
+        } catch (ignore: Exception) {
+
+        }
+        val set: FilePersistenceSet<String> = FilePersistenceSet(
+            "./test2.txt",
+            JacksonSerializer(String::class.java),
+        )
+
+        println(set.isEmpty())
+        for (i in 0..3) {
+            set.add("$i")
+        }
+        for (i in 0..3) {
+            set.add("$i")
+        }
+        for (i in 0..3) {
+            set.add("$i")
+        }
+        println(set.toString())
+        println(set.size)
+        println(set.containsAll(arrayListOf("1", "2")))
+        println(set.contains("1"))
+        println(set.contains("5"))
+
+        set.retainAll(arrayListOf("1", "2"))
+        println(set)
+        set.retainAll(arrayListOf("1", "5"))
+        println(set)
+        for (i in 0..3) {
+            set.add("$i")
+        }
+        println(set)
+        val iterator = set.iterator()
+
+            iterator.next()
+            println("remove ${iterator.next()} ")
+            iterator.remove()
+            println(set)
 
     }
 }

@@ -13,7 +13,6 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="common" target="11" />
-      <module name="EasyMq" target="11" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">

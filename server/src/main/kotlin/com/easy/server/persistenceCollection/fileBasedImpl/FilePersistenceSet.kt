@@ -4,6 +4,7 @@ import com.easy.server.persistenceCollection.PersistenceSet
 import com.easy.server.persistenceCollection.Serializer
 import com.easy.server.persistenceCollection.retainAll
 import com.easy.server.persistenceCollection.unitSerializer
+import java.util.*
 
 class FilePersistenceSet<E>(
     filePath: String,
@@ -58,7 +59,7 @@ class FilePersistenceSet<E>(
     }
 
     override fun retainAll(elements: Collection<E>): Boolean {
-        return retainAll(elements, iterator())
+        return map.retainAll(elements.map { Pair(it,Unit) })
     }
 
     override val size: Int
@@ -81,6 +82,24 @@ class FilePersistenceSet<E>(
 
     override fun clear() {
         map.clear()
+    }
+
+    override fun toString(): String {
+
+        val builder = StringBuilder()
+        builder.append("{")
+
+        val iterator = iterator()
+        while(iterator.hasNext()){
+            builder.append("${iterator.next()}")
+
+            if(iterator.hasNext()){
+                builder.append(" ,")
+            }
+        }
+        builder.append("}")
+
+        return builder.toString()
     }
 
 
