@@ -11,8 +11,21 @@ class FilePersistenceArrayList<E>(
     forcePerOption: Boolean = false,
     initCap: Int = 16
 ) : PersistenceList<E>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap) {
+    override fun equals(other: Any?): Boolean {
+        if(other !is  List<*>||size!=other.size){
+            return false
+        }
+        for(i in 0 until size){
+            if(get(i)!=other[i]){
+                return false
+            }
+        }
+        return true
+    }
 
     companion object {
+
+
         //文件类型标记
         const val TYPE_MARK = 0
 
@@ -486,7 +499,7 @@ class FilePersistenceArrayList<E>(
 
     override fun clear() {
         while (!isEmpty()) {
-            indexArray[0].remove()
+            indexArray[size-1].remove()
         }
 
     }
@@ -593,11 +606,14 @@ class FilePersistenceArrayList<E>(
         return element
     }
 
+    /**
+     * 此方法不返回一个view 而是返回一个新的集合
+     */
     override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> {
         checkIndex(fromIndex)
         checkIndex(toIndex - 1)
         val mutableList = mutableListOf<E>()
-        for (i in fromIndex until toIndex - 1) {
+        for (i in fromIndex until toIndex) {
             mutableList.add(indexArray[i].getBlock().value)
         }
         return mutableList

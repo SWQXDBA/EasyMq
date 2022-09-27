@@ -48,3 +48,17 @@ fun iterToString(iterator: Iterator<*>):String{
 
     return builder.toString()
 }
+
+fun<E> compareCollection (c1: Collection<E>, c2: Collection<E> ):Boolean{
+    val iterator = c2.iterator()
+    val iterator1 = c1.iterator()
+    while(iterator.hasNext()&&iterator1.hasNext()){
+        if(iterator.next()!=iterator1.next()){
+            return false
+        }
+    }
+    if(iterator.hasNext()||iterator1.hasNext()){
+        return false
+    }
+    return true
+}

@@ -10,8 +10,8 @@ open class FilePersistenceMap<K, V>(
     val valueSerializer: Serializer<V>,
     autoForceMills: Long = 10,
     forcePerOption: Boolean = false,
-     initCap: Int = 16
-) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption,initCap) {
+    initCap: Int = 16
+) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap) {
 
 
     companion object {
@@ -108,10 +108,10 @@ open class FilePersistenceMap<K, V>(
         return (INDEX_ARRAY.ARRAY_START + cap * IndexPointer.POINTER_LENGTH).toLong()
     }
 
-    inner class IndexArray(position: Long,  cap: Int) :
-        AbstractFilePersistenceCollection.IndexArray<DoublePointer>(position,cap) {
+    inner class IndexArray(position: Long, cap: Int) :
+        AbstractFilePersistenceCollection.IndexArray<DoublePointer>(position, cap) {
 
-         val head: Header
+        val head: Header
             get() = Header(position)
 
         override operator fun get(index: Int): DoublePointer {
@@ -138,7 +138,7 @@ open class FilePersistenceMap<K, V>(
     /**
      * 表示一个DataBlock 或者IndexArray的开头部分
      */
-      inner class Header(val position: Long) {
+    inner class Header(val position: Long) {
 
         var delete: Boolean
             get() = fileMapper.position(position + DATA_AREA.DELETE_MARK).readByte() != 0.toByte()
@@ -149,7 +149,6 @@ open class FilePersistenceMap<K, V>(
 
         var dataSize: Long
             get() {
-
                 return fileMapper.position(position + DATA_AREA.DATA_SIZE).readLong()
             }
             set(value) {
@@ -349,7 +348,6 @@ open class FilePersistenceMap<K, V>(
         get() = IndexArray(indexArrayPosition, cap)
 
 
-
     fun init() {
         usageFileSize = DATA_AREA_START.toLong()
         //设置文件类型
@@ -362,6 +360,7 @@ open class FilePersistenceMap<K, V>(
         val alloc = alloc(indexArraySize)
         indexArrayPosition = alloc
         indexArray.head.dataSize = indexArraySize
+        indexArray.head.delete = false
     }
 
     /**
@@ -397,6 +396,7 @@ open class FilePersistenceMap<K, V>(
             }
         }
         oldArray.head.delete = true
+
 
 
     }
@@ -458,8 +458,6 @@ open class FilePersistenceMap<K, V>(
 
     override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
         get() {
-
-
             val set = object : MutableSet<MutableMap.MutableEntry<K, V>> {
                 override fun add(element: MutableMap.MutableEntry<K, V>): Boolean {
                     return this@FilePersistenceMap.put(element.key, element.value) != null
@@ -481,6 +479,7 @@ open class FilePersistenceMap<K, V>(
                         override fun hasNext(): Boolean {
                             while (head.delete || head.isIndexArray()) {
                                 head = head.next
+
                             }
                             return head.canRead()
                         }
@@ -550,9 +549,7 @@ open class FilePersistenceMap<K, V>(
                 }
 
             }
-            forEachEntry {
-                set.add(PersistenceMutableEntry(it))
-            }
+
             return set
         }
     override val keys: MutableSet<K>
@@ -600,6 +597,9 @@ open class FilePersistenceMap<K, V>(
             while (pointer.hasNext) {
                 pointer = pointer.next
                 val dataBlock = DataBlock(pointer)
+                if(hash>20){
+                    println("")
+                }
                 if (!block(dataBlock)) {
                     return
                 }
@@ -637,11 +637,10 @@ open class FilePersistenceMap<K, V>(
         var head = Header(DATA_AREA_START.toLong())
 
         while (head.position < usageFileSize) {
+
             val next = head.next
             if (head.delete) {
                 space += head.dataSize
-
-
             } else {
                 //如果这个数据块是索引数组
                 if (head.isIndexArray()) {
@@ -668,6 +667,21 @@ open class FilePersistenceMap<K, V>(
         }
         usageFileSize -= space
         return space
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is Map<*, *> || size != other.size) {
+            return false
+        }
+
+        return allSuccess(entries) {
+
+            other[it.key] == it.value
+
+        } && allSuccess(other.entries) {
+
+            this[it.key] == it.value
+        }
     }
 
     override fun containsValue(value: V): Boolean {
@@ -705,7 +719,10 @@ open class FilePersistenceMap<K, V>(
     }
 
     override fun clear() {
+
         forEachEntry {
+
+
             it.delete = true
             return@forEachEntry true
         }

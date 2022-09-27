@@ -1,6 +1,7 @@
 package com.easy.server
 
 import com.easy.server.persistenceCollection.JacksonSerializer
+import com.easy.server.persistenceCollection.compareCollection
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceList
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceMap
@@ -17,6 +18,130 @@ import java.util.*
 
 @SpringBootTest
 class ServerApplicationTests {
+
+
+    @Test
+    fun arraylistTest() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Int::class.java))
+
+        val list = mutableListOf<Int>()
+
+        for (i in 0..1000) {
+            persistenceList.add(i)
+            list.add(i)
+        }
+
+        assert(persistenceList == list)
+        for (i in 5..250) {
+            persistenceList.remove(i)
+            list.remove(i)
+        }
+
+        assert(persistenceList == list)
+        for (i in 5..10) {
+            persistenceList.removeAt(i)
+            list.removeAt(i)
+        }
+
+        assert(persistenceList == list)
+
+        persistenceList.removeAt(0)
+        list.removeAt(0)
+
+        assert(persistenceList == list)
+
+        persistenceList.removeAt(persistenceList.size - 1)
+        list.removeAt(list.size - 1)
+        assert(persistenceList == list)
+
+        persistenceList.compress()
+
+        assert(persistenceList == list)
+
+        for (i in 0..100) {
+            persistenceList.add(i)
+            list.add(i)
+        }
+        assert(persistenceList == list)
+
+        assert(compareCollection(persistenceList.subList(2, 15), list.subList(2, 15)))
+
+
+
+        persistenceList.clear()
+        list.clear()
+        assert(persistenceList == list)
+
+    }
+
+    @Test
+    fun mapTest() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val map1 =
+            FilePersistenceMap("./test2.txt", JacksonSerializer(Int::class.java), JacksonSerializer(String::class.java))
+
+        val map2 = mutableMapOf<Int, String>()
+
+        for (i in 0..100) {
+            map1[i] = "$i"
+            map2[i] = "$i"
+        }
+        assert(map1 == map2)
+
+
+        for (i in 5..15) {
+            map1.remove(i)
+            map2.remove(i)
+
+        }
+
+        assert(map1 == map2)
+
+        for (i in 0..100) {
+            map1[i] = "${1000 - i}"
+            map2[i] = "${1000 - i}"
+        }
+        assert(map1 == map2)
+
+
+        map1.compress()
+        assert(map1 == map2)
+
+        map1.clear()
+        map2.clear()
+        assert(map1 == map2)
+
+
+
+        for (i in 20..30) {
+            map1[i] = "$i"
+            map2[i] = "$i"
+        }
+        for (i in 5..10) {
+            map1.remove(i)
+            map2.remove(i)
+        }
+        assert(map1 == map2)
+
+        map1.clear()
+        map2.clear()
+        assert(map1 == map2)
+
+        for (i in 20..30) {
+            map1[i] = "$i"
+            map2[i] = "$i"
+        }
+        for (i in 5..10) {
+            map1.remove(i)
+            map2.remove(i)
+        }
+        assert(map1 == map2)
+
+
+    }
 
     @Test
     fun fileTest() {
