@@ -9,6 +9,7 @@ object FileType {
     val ArrayList = 1L
     val MutableSet = 3L
     val MutableMap = 4L
+
     fun isNewFile(mark: Long) = mark == NEW_FILE
 
 }
@@ -24,4 +25,26 @@ fun<E> retainAll(elements: Collection<E>,iterator:MutableIterator<E>):Boolean{
         }
     }
     return modify
+}
+fun <T> allSuccess(elements:Collection<T> ,block:(T)->Boolean):Boolean{
+    var success = true
+    for (element in elements) {
+        success = success and block(element)
+    }
+    return success
+}
+fun iterToString(iterator: Iterator<*>):String{
+    val builder = StringBuilder()
+    builder.append("{")
+
+    while(iterator.hasNext()){
+        builder.append("${iterator.next()}")
+
+        if(iterator.hasNext()){
+            builder.append(" ,")
+        }
+    }
+    builder.append("}")
+
+    return builder.toString()
 }

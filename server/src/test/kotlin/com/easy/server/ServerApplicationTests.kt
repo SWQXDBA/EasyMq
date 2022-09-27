@@ -1,6 +1,7 @@
 package com.easy.server
 
 import com.easy.server.persistenceCollection.JacksonSerializer
+import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceList
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceMap
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceSet
@@ -330,10 +331,36 @@ class ServerApplicationTests {
         println(set)
         val iterator = set.iterator()
 
-            iterator.next()
-            println("remove ${iterator.next()} ")
-            iterator.remove()
-            println(set)
+        iterator.next()
+        println("remove ${iterator.next()} ")
+        iterator.remove()
+        println(set)
+
+    }
+
+
+    @Test
+    fun fileTest10() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Data::class.java))
+
+        for (i in 0..18) {
+            persistenceList.add(Data("str:: $i", i))
+        }
+        println(persistenceList)
+        for (i in 0..3) {
+            persistenceList.remove(Data("str:: $i", i))
+        }
+        for (i in 7..9) {
+            persistenceList.remove(Data("str:: $i", i))
+        }
+        println(persistenceList)
+        println(persistenceList.size)
+        println(persistenceList.usageFileSize)
+        println("com ${persistenceList.compress()}")
+        println(persistenceList.usageFileSize)
+        println(persistenceList)
 
     }
 }

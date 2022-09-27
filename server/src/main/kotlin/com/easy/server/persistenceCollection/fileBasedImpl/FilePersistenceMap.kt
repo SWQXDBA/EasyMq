@@ -10,40 +10,40 @@ open class FilePersistenceMap<K, V>(
     val valueSerializer: Serializer<V>,
     autoForceMills: Long = 10,
     forcePerOption: Boolean = false,
-    val initCap: Int = 16
-) : PersistenceMap<K, V>, FilePersistenceCollection(filePath, autoForceMills, forcePerOption) {
+     initCap: Int = 16
+) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption,initCap) {
 
 
     companion object {
         //文件类型标记
-        const val TYPE_MARK = 0
+        private const val TYPE_MARK = 0
 
         //记录索引数组的容量
-        const val CAP = 8
+        private const val CAP = 8
 
 
         //记录元素数量
-        const val SIZE = 12
+        private const val SIZE = 12
 
         //记录索引数组的位置
-        const val INDEX_ARRAY_Position = 16
+        private const val INDEX_ARRAY_Position = 16
 
         //记录文件已使用的字节大小
-        const val USAGE = 24
+        private const val USAGE = 24
 
         //保留位
-        const val RESERVED = 32
+        private const val RESERVED = 32
 
         //数据区起始位置
-        const val DATA_AREA_START = 48
+        private const val DATA_AREA_START = 48
 
         //扩容因子
-        const val expansionPercent = 0.75
+        private const val expansionPercent = 0.75
 
         //遍历方式切换阈值
-        const val batchForeachMinSize = 100
+        private const val batchForeachMinSize = 100
 
-        object DATA_AREA {
+        private object DATA_AREA {
             /**HEADER**/
             //除了数据本身外其他信息所占空间
             const val META_LENGTH: Long = 37
@@ -77,7 +77,7 @@ open class FilePersistenceMap<K, V>(
             //value的开始等于KEY_START+KEY_SIZE的值
         }
 
-        object INDEX_ARRAY {
+        private object INDEX_ARRAY {
             //delete标志位 扩容的时候旧的索引数组会被删除
             val DELETE_MARK = 0
 
@@ -88,7 +88,7 @@ open class FilePersistenceMap<K, V>(
             val ARRAY_START = 9
         }
 
-        object IndexPointer {
+        private object IndexPointer {
 
             //所占大小为16字节
             val POINTER_LENGTH = LongBytesSize * 2
@@ -101,22 +101,23 @@ open class FilePersistenceMap<K, V>(
         }
 
         //代表空指针
-        val NULL_POINTER: Long = 0;
+        private val NULL_POINTER: Long = 0;
     }
 
-    fun computeIndexArraySize(cap: Int): Long {
+    override fun computeIndexArraySize(cap: Int): Long {
         return (INDEX_ARRAY.ARRAY_START + cap * IndexPointer.POINTER_LENGTH).toLong()
     }
 
-    inner class IndexArray(val position: Long, val cap: Int) {
+    inner class IndexArray(position: Long,  cap: Int) :
+        AbstractFilePersistenceCollection.IndexArray<DoublePointer>(position,cap) {
 
-        val head: Header
+         val head: Header
             get() = Header(position)
 
-
-        operator fun get(index: Int): DoublePointer {
+        override operator fun get(index: Int): DoublePointer {
             return DoublePointer(position + INDEX_ARRAY.ARRAY_START + index * IndexPointer.POINTER_LENGTH)
         }
+
 
         override fun toString(): String {
 
@@ -137,7 +138,7 @@ open class FilePersistenceMap<K, V>(
     /**
      * 表示一个DataBlock 或者IndexArray的开头部分
      */
-    inner class Header(val position: Long) {
+      inner class Header(val position: Long) {
 
         var delete: Boolean
             get() = fileMapper.position(position + DATA_AREA.DELETE_MARK).readByte() != 0.toByte()
@@ -161,13 +162,14 @@ open class FilePersistenceMap<K, V>(
 
         val next: Header
             get() = Header(position + dataSize)
-        fun canRead():Boolean{
-            return position <usageFileSize
+
+        fun canRead(): Boolean {
+            return position < usageFileSize
         }
 
     }
 
-    inner class DataBlock private constructor() {
+    protected inner class DataBlock private constructor() {
         var position by Delegates.notNull<Long>()
 
         /**
@@ -204,8 +206,6 @@ open class FilePersistenceMap<K, V>(
 
             fileMapper.position(keyStart).writeBytes(keyBytes)
             fileMapper.position(valueStart).writeBytes(valueBytes)
-
-
 
 
         }
@@ -299,7 +299,7 @@ open class FilePersistenceMap<K, V>(
 
     }
 
-    inner class PersistenceMutableEntry(val dataBlock: DataBlock):MutableMap.MutableEntry<K, V>{
+    protected inner class PersistenceMutableEntry(val dataBlock: DataBlock) : MutableMap.MutableEntry<K, V> {
         override val key: K
             get() = dataBlock.key
         override val value: V
@@ -310,6 +310,7 @@ open class FilePersistenceMap<K, V>(
         }
 
     }
+
     init {
 
         val type = fileMapper.position(TYPE_MARK).readLong()
@@ -320,13 +321,13 @@ open class FilePersistenceMap<K, V>(
         }
     }
 
-    var usageFileSize: Long
+    override var usageFileSize: Long
         get() = fileMapper.position(USAGE).readLong()
         set(value) {
             fileMapper.position(USAGE).writeLong(value)
         }
 
-    var cap: Int = 0
+    override var cap: Int = 0
         get() {
             if (field == 0) {
                 field = fileMapper.position(CAP).readInt()
@@ -338,33 +339,16 @@ open class FilePersistenceMap<K, V>(
             fileMapper.position(CAP).writeInt(value)
 
         }
-    var indexArrayPosition: Long
+    override var indexArrayPosition: Long
         get() = fileMapper.position(INDEX_ARRAY_Position).readLong()
         set(value) {
             fileMapper.position(INDEX_ARRAY_Position).writeLong(value)
         }
 
-    val indexArray: IndexArray
+    override val indexArray: IndexArray
         get() = IndexArray(indexArrayPosition, cap)
 
-    /**
-     * 分配新的空间，返回空间的起始位置
-     */
-    fun alloc(size: Long): Long {
 
-
-
-        val start = usageFileSize
-        while (start + size >= fileSize) {
-
-            resizeFile()
-        }
-
-        usageFileSize = start + size
-
-
-        return start
-    }
 
     fun init() {
         usageFileSize = DATA_AREA_START.toLong()
@@ -383,7 +367,7 @@ open class FilePersistenceMap<K, V>(
     /**
      * 给hash array扩容
      */
-    fun expansion(newCap: Int) {
+    override fun expansion(newCap: Int) {
 
         val oldPosition = indexArrayPosition
         val oldCap = cap
@@ -398,7 +382,7 @@ open class FilePersistenceMap<K, V>(
 
         val newArray = IndexArray(newPosition, newCap)
         newArray.head.dataSize = diff
-
+        newArray.head.delete = false
         val oldArray = IndexArray(oldPosition, oldCap)
         for (i in 0 until oldCap) {
             var next = oldArray[i].next
@@ -418,7 +402,6 @@ open class FilePersistenceMap<K, V>(
     }
 
     private fun insert(dataBlock: DataBlock, indexArray: IndexArray) {
-
 
 
         val hashIndex = hash(dataBlock.hashCode, indexArray.cap)
@@ -472,42 +455,43 @@ open class FilePersistenceMap<K, V>(
         set(value) {
             fileMapper.position(SIZE).writeInt(value)
         }
+
     override val entries: MutableSet<MutableMap.MutableEntry<K, V>>
         get() {
 
 
-
-            val set =object :MutableSet<MutableMap.MutableEntry<K, V>>{
+            val set = object : MutableSet<MutableMap.MutableEntry<K, V>> {
                 override fun add(element: MutableMap.MutableEntry<K, V>): Boolean {
-                   return this@FilePersistenceMap.put(element.key,element.value)!=null
+                    return this@FilePersistenceMap.put(element.key, element.value) != null
                 }
 
                 override fun addAll(elements: Collection<MutableMap.MutableEntry<K, V>>): Boolean {
                     var success = true
-                    elements.forEach { success = success and  add(it)}
+                    elements.forEach { success = success and add(it) }
                     return success
                 }
 
                 override fun clear() {
-                   this@FilePersistenceMap.clear()
+                    this@FilePersistenceMap.clear()
                 }
 
                 override fun iterator(): MutableIterator<MutableMap.MutableEntry<K, V>> {
-                    return object : MutableIterator<MutableMap.MutableEntry<K, V>>{
+                    return object : MutableIterator<MutableMap.MutableEntry<K, V>> {
                         var head = Header(DATA_AREA_START.toLong())
                         override fun hasNext(): Boolean {
-                            while(head.delete||head.isIndexArray()){
+                            while (head.delete || head.isIndexArray()) {
                                 head = head.next
                             }
                             return head.canRead()
                         }
+
                         override fun next(): MutableMap.MutableEntry<K, V> {
-                            if(!hasNext()){
+                            if (!hasNext()) {
                                 throw IndexOutOfBoundsException("don't has next!")
                             }
                             val entry = PersistenceMutableEntry(DataBlock(head.position))
                             head = head.next
-                            return  entry
+                            return entry
                         }
 
                         override fun remove() {
@@ -518,12 +502,12 @@ open class FilePersistenceMap<K, V>(
                 }
 
                 override fun remove(element: MutableMap.MutableEntry<K, V>): Boolean {
-                    return this@FilePersistenceMap.remove(element.key,element.value)
+                    return this@FilePersistenceMap.remove(element.key, element.value)
                 }
 
                 override fun removeAll(elements: Collection<MutableMap.MutableEntry<K, V>>): Boolean {
                     var success = true
-                    elements.forEach { success = success and  this@FilePersistenceMap.remove(it.key,it.value)}
+                    elements.forEach { success = success and this@FilePersistenceMap.remove(it.key, it.value) }
                     return success
                 }
 
@@ -534,15 +518,16 @@ open class FilePersistenceMap<K, V>(
                     val toRemove = mutableSetOf<K>()
                     this@FilePersistenceMap.forEachEntry {
 
-                        if(!tempSet.contains( Pair(it.key, it.value))){
-                                modify = true
+                        if (!tempSet.contains(Pair(it.key, it.value))) {
+                            modify = true
                             toRemove.add(it.key)
                         }
-                            return@forEachEntry true
+                        return@forEachEntry true
                     }
                     toRemove.forEach {
 
-                        this@FilePersistenceMap.remove(it) }
+                        this@FilePersistenceMap.remove(it)
+                    }
 
                     return modify
                 }
@@ -551,17 +536,17 @@ open class FilePersistenceMap<K, V>(
                     get() = this@FilePersistenceMap.size
 
                 override fun contains(element: MutableMap.MutableEntry<K, V>): Boolean {
-                    return this@FilePersistenceMap.contains(element.key,element.value)
+                    return this@FilePersistenceMap.contains(element.key, element.value)
                 }
 
                 override fun containsAll(elements: Collection<MutableMap.MutableEntry<K, V>>): Boolean {
                     var containsAll = true
-                    elements.forEach {containsAll = containsAll and contains(it) }
+                    elements.forEach { containsAll = containsAll and contains(it) }
                     return containsAll
                 }
 
                 override fun isEmpty(): Boolean {
-                 return  size==0
+                    return size == 0
                 }
 
             }
@@ -595,9 +580,10 @@ open class FilePersistenceMap<K, V>(
     override fun containsKey(key: K): Boolean {
         return find(key) != null
     }
-     fun contains(key: K,value: V): Boolean {
-         val dataBlock = find(key)
-         return dataBlock != null&&dataBlock.value==value
+
+    fun contains(key: K, value: V): Boolean {
+        val dataBlock = find(key)
+        return dataBlock != null && dataBlock.value == value
     }
 
     /**
@@ -650,7 +636,7 @@ open class FilePersistenceMap<K, V>(
         var space = 0L
         var head = Header(DATA_AREA_START.toLong())
 
-        while (head.position <usageFileSize) {
+        while (head.position < usageFileSize) {
             val next = head.next
             if (head.delete) {
                 space += head.dataSize
@@ -666,7 +652,7 @@ open class FilePersistenceMap<K, V>(
                             pointer.next.prevValue = pointer.position - space
                         }
                     }
-                    indexArrayPosition -=  space
+                    indexArrayPosition -= space
                 } else {
                     //是普通数据块 则修改前后指针
                     val pointer = DataBlock(head.position).pointer
@@ -758,7 +744,8 @@ open class FilePersistenceMap<K, V>(
         val targetDataBlock = find(key) ?: return null
         return removeDataBlock(targetDataBlock)
     }
-    private fun removeDataBlock(targetDataBlock:DataBlock): V?{
+
+    private fun removeDataBlock(targetDataBlock: DataBlock): V? {
         size--
         val pointer = targetDataBlock.pointer
         pointer.prev.next = pointer.next
@@ -768,19 +755,21 @@ open class FilePersistenceMap<K, V>(
         targetDataBlock.delete = true
         return targetDataBlock.value
     }
-    fun remove(key: K,value:V) :Boolean{
+
+    fun remove(key: K, value: V): Boolean {
 
         val targetDataBlock = find(key) ?: return false
-        if(targetDataBlock.value!=value){
+        if (targetDataBlock.value != value) {
             return false
         }
-        return removeDataBlock(targetDataBlock)!=null
+        return removeDataBlock(targetDataBlock) != null
 
     }
-    fun retainAll(pairs:Collection<Pair<K,V>>):Boolean{
+
+    fun retainAll(pairs: Collection<Pair<K, V>>): Boolean {
         val set = pairs.toSet()
         var modify = false
-        val keysToRemove = mutableSetOf<Pair<K,V>>()
+        val keysToRemove = mutableSetOf<Pair<K, V>>()
 
         forEachEntry {
             val pair = Pair(it.key, it.value)
@@ -796,6 +785,7 @@ open class FilePersistenceMap<K, V>(
 
         return modify
     }
+
     override fun toString(): String {
         val stringBuilder = StringBuilder()
         stringBuilder.append("{")

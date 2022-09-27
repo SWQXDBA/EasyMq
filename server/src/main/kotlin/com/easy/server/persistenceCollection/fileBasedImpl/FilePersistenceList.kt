@@ -604,19 +604,6 @@ class FilePersistenceList<E>(
     }
 
     override fun toString(): String {
-        val builder = StringBuilder()
-        builder.append("{")
-
-        val iterator = iterator()
-        while(iterator.hasNext()){
-            builder.append("${iterator.next()}")
-
-            if(iterator.hasNext()){
-                builder.append(" ,")
-            }
-        }
-        builder.append("}")
-
-        return builder.toString()
+        return iterToString(iterator())
     }
 }
