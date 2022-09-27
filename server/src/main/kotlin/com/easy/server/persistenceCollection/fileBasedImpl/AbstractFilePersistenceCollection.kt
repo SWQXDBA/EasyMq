@@ -1,6 +1,7 @@
 package com.easy.server.persistenceCollection.fileBasedImpl
 
 import com.easy.server.persistenceCollection.FileMapper
+import com.easy.server.persistenceCollection.FileMapperType
 import com.easy.server.persistenceCollection.MemoryMapMapper
 import com.easy.server.persistenceCollection.RandomAccessFileMapper
 import kotlinx.coroutines.GlobalScope
@@ -12,7 +13,8 @@ abstract class AbstractFilePersistenceCollection(
     filePath: String,
     val autoForceMills: Long = 10,
     val forcePerOption: Boolean = false,
-    val initCap: Int = 16
+    val initCap: Int = 16,
+    val fileMapperType: FileMapperType
 ) {
     var fileMapper: FileMapper
 
@@ -26,7 +28,15 @@ abstract class AbstractFilePersistenceCollection(
 
     init {
          //fileMapper = MemoryMapMapper(filePath, initFileSize)
-        fileMapper = RandomAccessFileMapper(filePath, initFileSize)
+        fileMapper =  when(fileMapperType){
+            FileMapperType.MemoryMapMapper-> MemoryMapMapper(filePath, initFileSize)
+            FileMapperType.RandomAccessFileMapper ->  RandomAccessFileMapper(filePath, initFileSize)
+        }
+
+
+
+
+            RandomAccessFileMapper(filePath, initFileSize)
         GlobalScope.launch {
             while (true) {
                 delay(autoForceMills)

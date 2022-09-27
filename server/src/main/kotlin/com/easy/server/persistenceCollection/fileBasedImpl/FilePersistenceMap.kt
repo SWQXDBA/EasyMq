@@ -20,8 +20,9 @@ open class FilePersistenceMap<K, V>(
      *
      * 设置为负数则动态调整倍率
      */
-    val valueRedundancyRatio: Float = -1f
-) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap) {
+    val valueRedundancyBytesRatio: Float = -1f,
+    fileMapperType: FileMapperType = FileMapperType.MemoryMapMapper
+) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap,fileMapperType) {
 
 
     companion object {
@@ -201,8 +202,8 @@ open class FilePersistenceMap<K, V>(
 
 
 
-            if(valueRedundancyRatio>0){
-                size += (valueBytes.size * valueRedundancyRatio).toLong()
+            if(valueRedundancyBytesRatio>0){
+                size += (valueBytes.size * valueRedundancyBytesRatio).toLong()
             }else{
 
                 val oneMb = 1024*1024

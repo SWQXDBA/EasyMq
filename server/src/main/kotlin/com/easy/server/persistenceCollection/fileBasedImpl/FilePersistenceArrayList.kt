@@ -9,8 +9,9 @@ class FilePersistenceArrayList<E>(
     val serializer: Serializer<E>,
     autoForceMills: Long = 10,
     forcePerOption: Boolean = false,
-    initCap: Int = 16
-) : PersistenceList<E>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap) {
+    initCap: Int = 16,
+    fileMapperType: FileMapperType = FileMapperType.MemoryMapMapper
+) : PersistenceList<E>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap,fileMapperType) {
     override fun equals(other: Any?): Boolean {
         if(other !is  List<*>||size!=other.size){
             return false

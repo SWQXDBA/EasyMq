@@ -13,6 +13,9 @@ object FileType {
     fun isNewFile(mark: Long) = mark == NEW_FILE
 
 }
+enum class FileMapperType{
+    MemoryMapMapper,RandomAccessFileMapper
+}
 
 val LongBytesSize = 8
 fun<E> retainAll(elements: Collection<E>,iterator:MutableIterator<E>):Boolean{
