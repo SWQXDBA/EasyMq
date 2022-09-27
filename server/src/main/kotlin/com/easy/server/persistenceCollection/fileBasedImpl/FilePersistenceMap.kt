@@ -10,7 +10,17 @@ open class FilePersistenceMap<K, V>(
     val valueSerializer: Serializer<V>,
     autoForceMills: Long = 10,
     forcePerOption: Boolean = false,
-    initCap: Int = 16
+    initCap: Int = 5000,
+
+    /**
+     * value字节数量的冗余倍率。
+     * 创建数据块时会为value分配额外的空间以便将来新的value进行替换
+     * 如果冗余替换成功，则在插入新的键值对时不需要重新分配额外的空间，可以避免文件大小迅速膨胀
+     * 0.5f意味着会为value分配1.5倍大小的空间
+     *
+     * 设置为负数则动态调整倍率
+     */
+    val valueRedundancyRatio: Float = -1f
 ) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap) {
 
 
@@ -179,17 +189,47 @@ open class FilePersistenceMap<K, V>(
 
         }
 
-
         /**
          * 创建一个不存在的节点，为其分配空间
          */
-        constructor(key: K, value: V) : this() {
-
+        constructor(key:K ,valueBytes:ByteArray):this(){
 
             val keyBytes = keySerializer.toBytes(key)
-            val valueBytes = valueSerializer.toBytes(value)
 
-            val size = keyBytes.size + valueBytes.size + DATA_AREA.META_LENGTH
+
+            var size = keyBytes.size + valueBytes.size + DATA_AREA.META_LENGTH
+
+
+
+            if(valueRedundancyRatio>0){
+                size += (valueBytes.size * valueRedundancyRatio).toLong()
+            }else{
+
+                val oneMb = 1024*1024
+                size += when {
+                    valueBytes.size<64 -> {
+                        /**
+                         * 较小的value可能是基本类型，或者小的记录 一般修改时大小不会有明显变化
+                         */
+                        4
+                    }
+                    valueBytes.size<1024*1024*64 -> {
+                        /**
+                         * 中等大小的数据
+                         */
+                        (valueBytes.size*0.5f).toInt()
+                    }
+                    else -> {
+
+                        /**
+                         * 如果大于64mb 则认为可能存的是文本，音频等大文件 此类文件一般不会频繁修改 只分配少量冗余空间
+                         */
+                        1024*1024
+                    }
+                }
+            }
+
+
 
             this.position = alloc(size)
 
@@ -207,11 +247,15 @@ open class FilePersistenceMap<K, V>(
             fileMapper.position(keyStart).writeBytes(keyBytes)
             fileMapper.position(valueStart).writeBytes(valueBytes)
 
-            val byteArray = ByteArray(size.toInt())
-            fileMapper.position(this.position).readBytes(byteArray)
 
-
+            //必要的代码 因为压缩操作后, 指针初始值不一定是0
+            pointer.nextValue = NULL_POINTER
+            pointer.prevValue = NULL_POINTER
         }
+        /**
+         * 创建一个不存在的节点，为其分配空间
+         */
+        constructor(key: K, value: V) : this(key,valueSerializer.toBytes(value))
 
         //根据指针位置 推算出数据块的起始位置
         constructor(pointer: DoublePointer) : this(pointer.position - DATA_AREA.POINTER)
@@ -264,6 +308,22 @@ open class FilePersistenceMap<K, V>(
             get() {
                 return valueSerializer.fromBytes(fileMapper.byteArrayAt(valueStart, valueSize))
             }
+
+        //可以给value用的字节数
+        val valueFreeSize: Int
+            get() = (dataSize - DATA_AREA.META_LENGTH - keySize).toInt()
+
+        fun tryReplaceValue(newBytes: ByteArray): Boolean {
+            val freeSize = valueFreeSize
+
+
+            if (newBytes.size <= freeSize) {
+                valueSize = newBytes.size
+                fileMapper.position(valueStart).writeBytes(newBytes)
+                return true
+            }
+            return false
+        }
     }
 
 
@@ -315,6 +375,7 @@ open class FilePersistenceMap<K, V>(
     }
 
     init {
+
 
         val type = fileMapper.position(TYPE_MARK).readLong()
         if (type == FileType.NEW_FILE) {
@@ -406,22 +467,19 @@ open class FilePersistenceMap<K, V>(
         oldArray.head.delete = true
 
 
-
     }
 
+    /**
+     * 把数据块插入索引数组中 索引数组可以是新的 也可以是旧的 这个方法可以在扩容时调用 也可以在插入新数据的时候调用
+     * 现在只用作从旧的hash数组中插入到新的hash数组中 因为如果是新的元素 insertNew的效率更高
+     */
     private fun insert(dataBlock: DataBlock, indexArray: IndexArray) {
-
-
-
-
         val hashIndex = hash(dataBlock.hashCode, indexArray.cap)
         val indexPointerNode = indexArray[hashIndex]
 
         val newPointer = dataBlock.pointer
 
-        //必要的代码 因为压缩操作后, 指针初始值不一定是0
-        newPointer.nextValue = NULL_POINTER
-        newPointer.prevValue = NULL_POINTER
+
         //没有同hash的节点
         if (!indexPointerNode.hasNext) {
             indexPointerNode.next = newPointer
@@ -460,6 +518,72 @@ open class FilePersistenceMap<K, V>(
         size++
     }
 
+    /**
+     * 插入一个新的键值对 这个方法的意义在于如果新的value的字节数可以装在旧的数据块中，则允许value原地替换。
+     */
+    private fun insertNew(key: K, value: V, indexArray: IndexArray) {
+        val hashIndex = hash(key.hashCode(), indexArray.cap)
+        val indexPointerNode = indexArray[hashIndex]
+
+
+        val dataBlock: DataBlock
+        val newPointer: DoublePointer
+
+
+        //没有同hash的节点
+        if (!indexPointerNode.hasNext) {
+            dataBlock = DataBlock(key, value)
+            newPointer = dataBlock.pointer
+            indexPointerNode.next = newPointer
+            newPointer.prev = indexPointerNode
+        }
+        //hash冲突了
+        else {
+            var lastPointer = indexPointerNode
+            do {
+                lastPointer = lastPointer.next
+                val currentOldData = DataBlock(lastPointer)
+                //同key 进行替换
+                if (currentOldData.hashCode == key.hashCode() && currentOldData.key == key) {
+
+                    val valueBytes = valueSerializer.toBytes(value)
+                    //原地替换
+                    if (!currentOldData.tryReplaceValue(valueBytes)) {
+                        //原地替换失败 使用新节点替换
+                        dataBlock = DataBlock(key, valueBytes)
+                        newPointer = dataBlock.pointer
+
+                        //替换前后节点的指针
+                        currentOldData.delete = true
+                        val oldPointer = currentOldData.pointer
+                        val prev = oldPointer.prev
+                        //修改前指针
+                        prev.next = newPointer
+                        newPointer.prev = prev
+
+                        //修改后指针
+                        if (oldPointer.hasNext) {
+                            oldPointer.next.prev = newPointer
+                            newPointer.next = oldPointer.next
+                        }
+                    }
+                    return
+                }
+            } while (lastPointer.hasNext)
+
+
+            dataBlock = DataBlock(key, value)
+            newPointer = dataBlock.pointer
+            //没有重复的节点
+            lastPointer.next = newPointer
+            newPointer.prev = lastPointer
+
+        }
+
+        size++
+
+
+    }
 
     private fun hash(hashCode: Int, cap: Int): Int {
         return abs(hashCode) % cap
@@ -752,10 +876,10 @@ open class FilePersistenceMap<K, V>(
             expansion(cap * 2)
         }
 
-        val dataBlock = DataBlock(key, value)
 
 
-        insert(dataBlock, IndexArray(indexArrayPosition, cap))
+        insertNew(key, value, indexArray)
+
 
 
         return value

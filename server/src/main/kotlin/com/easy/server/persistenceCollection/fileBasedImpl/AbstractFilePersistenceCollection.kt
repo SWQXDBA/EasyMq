@@ -25,8 +25,8 @@ abstract class AbstractFilePersistenceCollection(
     val initFileSize = 1024 * 1024L
 
     init {
-         fileMapper = MemoryMapMapper(filePath, initFileSize)
-        //fileMapper = RandomAccessFileMapper(filePath, initFileSize)
+         //fileMapper = MemoryMapMapper(filePath, initFileSize)
+        fileMapper = RandomAccessFileMapper(filePath, initFileSize)
         GlobalScope.launch {
             while (true) {
                 delay(autoForceMills)

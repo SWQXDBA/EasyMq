@@ -142,6 +142,27 @@ class ServerApplicationTests {
 
 
     }
+    @Test
+    fun mapReplaceSpeedTest() {
+
+        Files.delete(Path.of("./test2.txt"))
+        val map1 =
+            FilePersistenceMap("./test2.txt", JacksonSerializer(Int::class.java), JacksonSerializer(String::class.java))
+
+        val watch = StopWatch()
+        watch.start()
+
+
+        for (i in 0..2000) {
+            map1[i] = "$i"
+        }
+        for (i in 0..2000) {
+            map1[i] = "$i 111111111111111111111111"
+        }
+        watch.stop()
+        println(watch.totalTimeMillis)
+
+    }
 
     @Test
     fun fileTest() {
