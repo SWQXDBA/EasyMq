@@ -1,8 +1,10 @@
 package com.easy.core.entity;
 
+import lombok.Data;
+
 import java.io.Serializable;
 import java.util.Objects;
-
+@Data
 public class MessageId implements Serializable {
     private static final long serialVersionUID = 1L;
 

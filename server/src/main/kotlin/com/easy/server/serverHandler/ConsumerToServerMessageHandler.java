@@ -26,10 +26,7 @@ public class ConsumerToServerMessageHandler extends SimpleChannelInboundHandler<
         for (MessageId messageId : msg.confirmationResponse) {
             final Topic topic = server.getTopics().get(messageId.getTopicName());
 
-            if (topic.responseReceivedMessage(messageId,msg.consumerGroupName)) {
-                //持久层删除消息
-                server.getPersistenceProvider().remove(messageId);
-            }
+            topic.responseReceivedMessage(messageId,msg.consumerGroupName);
 
         }
 

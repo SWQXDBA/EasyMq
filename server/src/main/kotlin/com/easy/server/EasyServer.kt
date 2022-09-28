@@ -8,7 +8,7 @@ import com.easy.clientHandler.ReadableControl
 import com.easy.core.entity.MessageId
 import com.easy.server.core.entity.ConsumerGroup
 import com.easy.server.core.entity.Topic
-import com.easy.server.dao.PersistenceProvider
+
 import com.easy.server.serverHandler.*
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.*
@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit
 class EasyServer(
     @Value("\${server.port}")
     val port: Int, val producerToServerMessageHandler: ProducerToServerMessageHandler,
-     val persistenceProvider: PersistenceProvider,
     private val consumerInitMessageHandler: ConsumerInitMessageHandler,
     private val consumerToServerMessageHandler:ConsumerToServerMessageHandler,
     private val callBackMessageHandler: CallBackMessageHandler,
@@ -49,6 +48,9 @@ class EasyServer(
 
     init {
         Companion.INSTANSE = this
+        Topic.topics.forEach {
+            topics[it] = Topic(it)
+        }
     }
 
 

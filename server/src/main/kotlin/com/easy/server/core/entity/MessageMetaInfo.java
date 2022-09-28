@@ -1,6 +1,9 @@
 package com.easy.server.core.entity;
 
 import com.easy.core.entity.MessageId;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -14,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author SWQXDBA
  */
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
 public class MessageMetaInfo  implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -21,11 +27,8 @@ public class MessageMetaInfo  implements Serializable {
 
     /**
      * 消息发送的大致时间 仅仅是topic的sendToGroup时记录的，消息不一定会被立刻发送
+     * String: ConsumerGroupName
      */
-    public  ConcurrentHashMap<MessageId, ConcurrentHashMap<ConsumerGroup, LocalDateTime>> consumesSendTime = new ConcurrentHashMap<>();
+    public  ConcurrentHashMap<MessageId, ConcurrentHashMap<String, LocalDateTime>> consumesSendTime = new ConcurrentHashMap<>();
 
-    /**
-     *   用来告诉producer 此消息已经被服务器接收过
-     */
-    public Set<MessageId>  receivedMessages = ConcurrentHashMap.newKeySet();
 }

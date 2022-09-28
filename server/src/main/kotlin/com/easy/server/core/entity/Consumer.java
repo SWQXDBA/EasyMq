@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 表示建立了连接的一个消费者 用来发送消息
@@ -25,7 +26,7 @@ public class Consumer extends Client {
     public ConsumerGroup group;
     public LocalDateTime lastResponseTime = LocalDateTime.now();
 
-    final static ExecutorService service = Executors.newCachedThreadPool();
+
 
     //一次性最多批量发送多少数据 如果数据太大 序列化会出问题
     final static int BatchSendBytesSize = 1024 * 1024;
@@ -45,17 +46,11 @@ public class Consumer extends Client {
         this.group = group;
         this.channel = channel;
 
-        service.execute(() -> {
-            while (true) {
-                try {
-                    Thread.sleep(longestSendIntervalMills);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                checkAndSend();
-            }
+        TimeScheduler.executor
+                .scheduleWithFixedDelay(this::checkAndSend,
+                        1,longestSendIntervalMills,
+                        TimeUnit.MILLISECONDS);
 
-        });
     }
 
 

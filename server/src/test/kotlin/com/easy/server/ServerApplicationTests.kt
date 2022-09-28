@@ -91,13 +91,14 @@ class ServerApplicationTests {
         }
         assert(map1 == map2)
 
+        println("1")
 
         for (i in 5..15) {
             map1.remove(i)
             map2.remove(i)
 
         }
-
+        println("2")
         assert(map1 == map2)
 
         for (i in 0..100) {
@@ -106,14 +107,15 @@ class ServerApplicationTests {
         }
         assert(map1 == map2)
 
-
+        println("3")
         map1.compress()
+        println("4")
         assert(map1 == map2)
-
+        println("4.1")
         map1.clear()
         map2.clear()
         assert(map1 == map2)
-
+        println("5")
 
 
         for (i in 20..30) {
@@ -125,7 +127,7 @@ class ServerApplicationTests {
             map2.remove(i)
         }
         assert(map1 == map2)
-
+        println("6")
         map1.clear()
         map2.clear()
         assert(map1 == map2)
@@ -139,7 +141,7 @@ class ServerApplicationTests {
             map2.remove(i)
         }
         assert(map1 == map2)
-
+        println("7")
 
     }
     @Test

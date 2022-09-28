@@ -2,6 +2,10 @@ package com.easy.server.persistenceCollection
 
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
 
 
 interface Serializer<T>{
@@ -18,12 +22,37 @@ object unitSerializer:Serializer<Unit>{
     }
 
 }
+
+class JdkSerializer<T:java.io.Serializable >(
+    val type:Class<T>
+):Serializer<T>{
+
+    override fun toBytes(obj: T): ByteArray {
+
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
+        objectOutputStream.writeObject(obj)
+        return  byteArrayOutputStream.toByteArray()
+    }
+
+
+    override fun fromBytes(bytes: ByteArray): T {
+        val byteArrayInputStream = ByteArrayInputStream(bytes)
+        val objectInputStream = ObjectInputStream(byteArrayInputStream)
+
+        return     objectInputStream.readObject() as T
+
+    }
+
+
+}
 class JacksonSerializer<T>(
     val type:Class<T>
 ):Serializer<T>{
     val objectMapper=ObjectMapper()
     override fun toBytes(obj: T): ByteArray {
-      return  objectMapper.writeValueAsBytes(obj)
+
+        return  objectMapper.writeValueAsBytes(obj)
     }
 
     override fun fromBytes(bytes: ByteArray): T {

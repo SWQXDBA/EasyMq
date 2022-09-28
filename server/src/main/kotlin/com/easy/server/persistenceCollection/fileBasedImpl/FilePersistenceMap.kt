@@ -202,6 +202,7 @@ open class FilePersistenceMap<K, V>(
 
 
 
+
             if(valueRedundancyBytesRatio>0){
                 size += (valueBytes.size * valueRedundancyBytesRatio).toLong()
             }else{
@@ -440,6 +441,7 @@ open class FilePersistenceMap<K, V>(
         cap = newCap
         val diff = computeIndexArraySize(newCap)
         while (usageFileSize + diff > fileSize) {
+
             resizeFile()
         }
 
@@ -617,9 +619,8 @@ open class FilePersistenceMap<K, V>(
                     return object : MutableIterator<MutableMap.MutableEntry<K, V>> {
                         var head = Header(DATA_AREA_START.toLong())
                         override fun hasNext(): Boolean {
-                            while (head.delete || head.isIndexArray()) {
+                            while ((head.delete || head.isIndexArray()) && head.canRead()) {
                                 head = head.next
-
                             }
                             return head.canRead()
                         }
@@ -727,6 +728,7 @@ open class FilePersistenceMap<K, V>(
      * block：  返回false表示遍历终止
      */
     private fun forEachEntry(block: (DataBlock) -> Boolean) {
+
         if (size > batchForeachMinSize) {
             batchForEachEntry(block)
             return
@@ -863,9 +865,11 @@ open class FilePersistenceMap<K, V>(
             it.delete = true
             return@forEachEntry true
         }
+
         for (i in 0 until cap) {
             indexArray[i].nextValue = NULL_POINTER
         }
+
         size = 0
     }
 

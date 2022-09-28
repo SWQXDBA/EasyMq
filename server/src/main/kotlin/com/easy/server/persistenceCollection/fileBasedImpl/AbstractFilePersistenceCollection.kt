@@ -46,6 +46,8 @@ abstract class AbstractFilePersistenceCollection(
     }
 
     fun resizeFile(magnification: Int = 2) {
+
+
         fileSize *= magnification
     }
     /**
@@ -54,7 +56,9 @@ abstract class AbstractFilePersistenceCollection(
     fun alloc(size: Long): Long {
 
 
+
         val start = usageFileSize
+
         while (start + size >= fileSize) {
 
             resizeFile()

@@ -18,16 +18,16 @@ public class Main {
         AtomicLong atomicLong = new AtomicLong();
 
         EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者1");
-//        client.addListener(new DefaultListener<String>("topic") {
-//            @Override
-//            public void handle(MessageId messageId, String message) {
-//                atomicLong.getAndIncrement();
-//                   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
-//                client.confirmationResponse(messageId);
-//            }
-//        });
+        client.addListener(new DefaultListener<String>("topic") {
+            @Override
+            public void handle(MessageId messageId, String message) {
+                atomicLong.getAndIncrement();
+                   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
+                client.confirmationResponse(messageId);
+            }
+        });
 
-//        client.addNode(8081, "localhost");
+        client.addNode(8081, "localhost");
         final ExecutorService service = Executors.newFixedThreadPool(1000);
 
 
@@ -35,7 +35,7 @@ public class Main {
         service.execute(() -> {
             while (true) {
                 if(!stop.get()){
-                    for (int i = 0; i < 100; i++) {
+                    for (int i = 0; i < 10; i++) {
                         service.execute(() -> {
                             if (stop.get()) {
                                 return;
