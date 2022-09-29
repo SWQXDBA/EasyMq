@@ -1,5 +1,6 @@
 package com.easy.server
 
+import com.easy.server.persistenceCollection.FileMapperType
 import com.easy.server.persistenceCollection.JacksonSerializer
 import com.easy.server.persistenceCollection.compareCollection
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList
@@ -165,7 +166,38 @@ class ServerApplicationTests {
         println(watch.totalTimeMillis)
 
     }
+    @Test
+    fun mapSpeedTest1() {
 
+        try{Files.delete(Path.of("./test2.txt"))}catch (_:Exception){}
+        val map1 =
+            FilePersistenceMap("./test2.txt",
+                JacksonSerializer(String::class.java),
+                JacksonSerializer(String::class.java),
+                10,
+                false,
+                10000*1000*2,
+                -1f,
+                FileMapperType.RandomAccessFileMapper
+            )
+
+
+
+
+        for (i in 0..10000) {
+            val watch = StopWatch()
+            watch.start()
+            for (j in 0..1000) {
+                map1["$i . $j"] = "$i $j"
+            }
+            watch.stop()
+            println("$i : ${watch.totalTimeMillis} mills")
+        }
+
+
+
+
+    }
     @Test
     fun fileTest() {
 

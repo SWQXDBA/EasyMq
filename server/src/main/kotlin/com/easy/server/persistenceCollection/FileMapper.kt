@@ -225,3 +225,78 @@ class RandomAccessFileMapper(
     }
 
 }
+
+class MergedMemoryMapMapper(
+    filePath: String,
+    initFileSize: Long
+) : FileMapper {
+
+    val sizePerMap:Int = Int.MAX_VALUE-1024
+    private lateinit var fileMapper: MappedByteBuffer
+    val mapArray = mutableListOf<MappedByteBuffer>()
+    var mapCount:Int = 0
+
+    private fun getMapIndexByPosition(position: Long):Int{
+       return (position/sizePerMap).toInt()
+    }
+    private fun resizeMaps(position: Long){
+
+    }
+    override var fileSize: Long = 0
+        set(value) {
+            field = value
+            value
+        }
+
+    override fun position(position: Long): FileMapper {
+        TODO("Not yet implemented")
+    }
+
+    override fun position(position: Int): FileMapper {
+        TODO("Not yet implemented")
+    }
+
+    override fun writeBytes(value: ByteArray) {
+        TODO("Not yet implemented")
+    }
+
+    override fun writeByte(value: Byte) {
+        TODO("Not yet implemented")
+    }
+
+    override fun writeInt(value: Int) {
+        TODO("Not yet implemented")
+    }
+
+    override fun writeLong(value: Long) {
+        TODO("Not yet implemented")
+    }
+
+    override fun writeDouble(value: Double) {
+        TODO("Not yet implemented")
+    }
+
+    override fun readInt(): Int {
+        TODO("Not yet implemented")
+    }
+
+    override fun readLong(): Long {
+        TODO("Not yet implemented")
+    }
+
+    override fun readDouble(): Double {
+        TODO("Not yet implemented")
+    }
+
+    override fun readByte(): Byte {
+        TODO("Not yet implemented")
+    }
+
+    override fun readBytes(value: ByteArray) {
+        TODO("Not yet implemented")
+    }
+
+    override fun force() {
+        TODO("Not yet implemented")
+    }
+}

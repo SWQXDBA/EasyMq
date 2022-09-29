@@ -435,7 +435,7 @@ open class FilePersistenceMap<K, V>(
      */
     override fun expansion(newCap: Int) {
 
-
+        println("rehash!!!")
         val oldPosition = indexArrayPosition
         val oldCap = cap
         cap = newCap
