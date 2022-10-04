@@ -22,7 +22,7 @@ public class Main {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();
-                   System.out.println("   已收到"+atomicLong+"/"+client.getSentMessage());
+
                 client.confirmationResponse(messageId);
             }
         });
@@ -34,13 +34,13 @@ public class Main {
         AtomicBoolean stop = new AtomicBoolean(false);
         service.execute(() -> {
             while (true) {
-                if(!stop.get()){
-                    for (int i = 0; i < 10; i++) {
+                if (!stop.get()) {
+                    for (int i = 0; i < 1; i++) {
                         service.execute(() -> {
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 1000; j++) {
+                            for (int j = 0; j < 10; j++) {
                                 client.sendToTopic("str", "topic");
                             }
                         });
@@ -54,8 +54,24 @@ public class Main {
             }
         });
 
+
         service.execute(() -> {
-            while(true){
+            long l = 0;
+            while (true) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                System.out.println(atomicLong.get() - l);
+                l = atomicLong.get();
+            }
+
+
+        });
+
+        service.execute(() -> {
+            while (true) {
                 Scanner scanner = new Scanner(System.in);
                 scanner.nextLine();
                 stop.set(!stop.get());

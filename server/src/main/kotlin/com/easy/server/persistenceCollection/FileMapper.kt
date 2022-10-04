@@ -2,13 +2,13 @@ package com.easy.server.persistenceCollection
 
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
-import java.nio.IntBuffer
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import kotlin.io.path.exists
+import kotlin.math.min
 
 interface FileMapper {
     /**
@@ -235,12 +235,16 @@ class MergedMemoryMapMapper(
 ) : FileMapper {
 
 
-    //    Int.MAX_VALUE - 1024.toLong()
-    val sizePerMap: Long = 1024 * 1024
+
+
+    val sizePerMap: Long = Int.MAX_VALUE.toLong()
     private lateinit var selectedMapper: MappedByteBuffer
     private var selectedMapperIndex: Int = 0
     val mapArray = mutableListOf<MappedByteBuffer>()
-    private val _64 = 64;
+
+    private val buffer32:ByteBuffer = ByteBuffer.allocate(4)
+    private val buffer64:ByteBuffer = ByteBuffer.allocate(8)
+
     override var fileSize: Long = 0
         set(value) {
             resizeMaps(value)
@@ -302,7 +306,7 @@ class MergedMemoryMapMapper(
         } else { //lastMapperIndex<currentIndex
             for (i in currentLastMapperIndex downTo newMapperIndex + 1) {
                 mapArray.removeAt(i)
-                    .force()
+                Files.deleteIfExists(Path.of(getMapperFileName(i)))
             }
             mapArray[newMapperIndex].force()
             mapArray[newMapperIndex] = mapper(newMapperIndex, positionInLastMapper)
@@ -324,27 +328,7 @@ class MergedMemoryMapMapper(
 
 
     override fun writeBytes(value: ByteArray) {
-        var mapper = selectedMapper
-        var mapperIndex = selectedMapperIndex
-        var position = mapper.position()
-        if (position + value.size <= sizePerMap) {
-            mapper.put(value)
-        } else {
-
-            var offset = 0
-            while (offset < value.size) {
-                val bytesCanWriteInThisMapper = mapper.capacity() - position
-                mapper.put(value, offset, bytesCanWriteInThisMapper)
-
-                offset += bytesCanWriteInThisMapper
-                position = 0
-                if (offset == value.size) {
-                    return
-                }
-                mapper = mapArray[++mapperIndex]
-            }
-
-        }
+        optionBytes(value,false)
     }
 
 
@@ -354,28 +338,40 @@ class MergedMemoryMapMapper(
     }
 
     override fun writeInt(value: Int) {
-        val put = IntBuffer.allocate(1).put(value)
-
-        writeBytes(put.array())
+        buffer32.clear()
+        buffer32.putInt(value)
+        writeBytes(buffer32.array())
     }
 
     override fun writeLong(value: Long) {
-        selectedMapper.putLong(value)
+        buffer64.clear()
+        buffer64.putLong(value)
+        writeBytes(buffer64.array())
+
     }
 
     override fun writeDouble(value: Double) {
-        selectedMapper.putDouble(value)
+        buffer64.clear()
+        buffer64.putDouble(value)
+        writeBytes(buffer64.array())
     }
 
     override fun readInt(): Int {
-        return selectedMapper.int
+
+        readBytes(buffer32.array())
+        buffer32.clear()
+        return  buffer32.int
     }
 
     override fun readLong(): Long {
-        return selectedMapper.long
+        readBytes(buffer64.array())
+        buffer64.clear()
+        return buffer64.long
     }
 
     override fun readDouble(): Double {
+        readBytes(buffer64.array())
+        buffer64.clear()
         return selectedMapper.double
     }
 
@@ -384,29 +380,53 @@ class MergedMemoryMapMapper(
     }
 
     override fun readBytes(value: ByteArray) {
+        optionBytes(value,true)
+    }
+
+    /**
+     * 读取到数组中，或者把数组中的数据写入mapper，
+     * readToArray == true则为读取到数组中
+     * readToArray == false则为把数组中的数据写入mapper
+     */
+    private fun optionBytes(array: ByteArray, readToArray:Boolean){
         var mapper = selectedMapper
         var mapperIndex = selectedMapperIndex
         var position = mapper.position()
-        if (position + value.size <= sizePerMap) {
-            mapper.get(value)
+        if (position + array.size <= sizePerMap) {
+            if(readToArray){
+                mapper.get(array)
+            }else{
+                mapper.put(array)
+            }
+
         } else {
 
             var offset = 0
-            while (offset < value.size) {
-                val bytesCanWriteInThisMapper = mapper.capacity() - position
-                mapper.get(value, offset, bytesCanWriteInThisMapper)
+            while (offset < array.size) {
+                val temp = mapper.position()
 
-                offset += bytesCanWriteInThisMapper
+                mapper.position(position)
+                val bytesCanReadInThisMapper = mapper.capacity() - position
+                val bytesToRead = min(bytesCanReadInThisMapper,array.size-offset)
+                if(readToArray){
+                    mapper.get(array, offset, bytesToRead)
+                }else{
+                    mapper.put(array, offset, bytesToRead)
+                }
+
+
+                offset += bytesToRead
                 position = 0
-                if (offset == value.size) {
+                if (offset == array.size) {
                     return
                 }
+
+                mapper.position(temp)
                 mapper = mapArray[++mapperIndex]
             }
 
         }
     }
-
     override fun force() {
         mapArray.forEach { it.force() }
     }

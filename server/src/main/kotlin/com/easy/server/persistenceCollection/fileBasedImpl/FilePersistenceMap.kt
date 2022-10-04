@@ -19,7 +19,7 @@ open class FilePersistenceMap<K, V>(
      * 设置为负数则动态调整倍率
      */
     val valueRedundancyBytesRatio: Float = -1f,
-    fileMapperType: FileMapperType = FileMapperType.MemoryMapMapper
+    fileMapperType: FileMapperType = FileMapperType.MergedMemoryMapMapper
 ) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, initCap,fileMapperType) {
 
 
@@ -433,7 +433,7 @@ open class FilePersistenceMap<K, V>(
      */
     override fun expansion(newCap: Int) {
 
-        println("rehash!!!")
+
         val oldPosition = indexArrayPosition
         val oldCap = cap
         cap = newCap

@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Topic {
 
@@ -58,13 +59,15 @@ public class Topic {
 
     AtomicInteger queueSelector = new AtomicInteger();
 
+    AtomicLong unReservedMessage = new AtomicLong();
+
     public Topic(String name) {
         topics.add(name);
         persistenceMessageMetaInfo = Collections.synchronizedList(
                 new FilePersistenceArrayList<>(name + "MetaInfo",
                         new JdkSerializer<>(MessageMetaInfo.class),
                         1000,
-                        FileMapperType.MemoryMapMapper
+                        FileMapperType.MergedMemoryMapMapper
                 )
         );
 
@@ -86,15 +89,21 @@ public class Topic {
                 name + "TopicMessages",
                 new JdkSerializer<>(MessageId.class),
                 new JdkSerializer<>(TransmissionMessage.class),
-
                 1000,
                 -1f,
-                FileMapperType.MemoryMapMapper)
+                FileMapperType.MergedMemoryMapMapper)
         );
+        unReservedMessage.set(messageMetaInfo.consumesSendTime.size());
     }
 
 
+    public  boolean canResolve(){
+        return messageMetaInfo.consumesSendTime.size()<10000;
+    }
     private void saveMeta() {
+
+        System.out.println(messageMetaInfo.consumesSendTime.size());
+        persistenceMessageMetaInfo.clear();
         persistenceMessageMetaInfo.add(messageMetaInfo);
     }
 

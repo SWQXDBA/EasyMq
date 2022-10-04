@@ -2,9 +2,7 @@ package com.easy.server.persistenceCollection.fileBasedImpl
 
 import com.easy.server.persistenceCollection.PersistenceSet
 import com.easy.server.persistenceCollection.Serializer
-import com.easy.server.persistenceCollection.retainAll
-import com.easy.server.persistenceCollection.unitSerializer
-import java.util.*
+import com.easy.server.persistenceCollection.UnitSerializer
 
 class FilePersistenceSet<E>(
     filePath: String,
@@ -13,7 +11,7 @@ class FilePersistenceSet<E>(
 ) :
     PersistenceSet<E> {
 
-    val map = FilePersistenceMap(filePath, serializer, unitSerializer, initCap)
+    val map = FilePersistenceMap(filePath, serializer, UnitSerializer, initCap)
     override fun add(element: E): Boolean {
         val contains = map.containsKey(element)
         map[element] = Unit

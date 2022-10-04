@@ -33,7 +33,7 @@ abstract class AbstractFilePersistenceCollection(
 
 
 
-            RandomAccessFileMapper(filePath, initFileSize)
+
         GlobalScope.launch {
             while (true) {
                 delay(autoForceMills)

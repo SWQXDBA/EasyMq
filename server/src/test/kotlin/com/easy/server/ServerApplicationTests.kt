@@ -25,7 +25,8 @@ class ServerApplicationTests {
     fun arraylistTest() {
 
         Files.deleteIfExists(Path.of("./test2.txt"))
-        val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Int::class.java))
+        val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Int::class.java),16,
+        FileMapperType.MergedMemoryMapMapper)
 
         val list = mutableListOf<Int>()
 
@@ -549,13 +550,17 @@ class ServerApplicationTests {
             16,
             FileMapperType.MergedMemoryMapMapper)
 
+
+        val stopWatch = StopWatch()
+        stopWatch.start()
         var i:Long = 0
-        while(i<50000){
+        while(i<100000){
             persistenceList.add(Data("str:: $i", i.toInt()))
             i++
         }
-        println(persistenceList.size)
 
+        stopWatch.stop()
+        println(stopWatch.totalTimeMillis)
 
 
     }

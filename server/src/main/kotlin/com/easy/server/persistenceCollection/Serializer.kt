@@ -12,7 +12,7 @@ interface Serializer<T>{
     fun toBytes(obj:T):ByteArray
     fun fromBytes(bytes:ByteArray):T
 }
-object unitSerializer:Serializer<Unit>{
+object UnitSerializer:Serializer<Unit>{
 
     override fun toBytes(obj: Unit): ByteArray {
         return ByteArray(0)
@@ -32,7 +32,7 @@ class JdkSerializer<T:java.io.Serializable >(
         val byteArrayOutputStream = ByteArrayOutputStream()
         val objectOutputStream = ObjectOutputStream(byteArrayOutputStream)
         objectOutputStream.writeObject(obj)
-        return  byteArrayOutputStream.toByteArray()
+        return byteArrayOutputStream.toByteArray()
     }
 
 
