@@ -227,33 +227,72 @@ class RandomAccessFileMapper(
 }
 
 class MergedMemoryMapMapper(
-    filePath: String,
-    initFileSize: Long
+    val filePath: String,
+    val initFileSize: Long
 ) : FileMapper {
 
-    val sizePerMap:Int = Int.MAX_VALUE-1024
+    val sizePerMap:Long = Int.MAX_VALUE-1024.toLong()
     private lateinit var fileMapper: MappedByteBuffer
     val mapArray = mutableListOf<MappedByteBuffer>()
     var mapCount:Int = 0
 
-    private fun getMapIndexByPosition(position: Long):Int{
+
+    private fun getMapperFileName(index:Int):String{
+        return "$filePath - $index"
+    }
+    private fun mapper(index:Int, size:Long): MappedByteBuffer{
+        return  FileChannel.open(Path.of(getMapperFileName(index)), StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
+                .map(FileChannel.MapMode.READ_WRITE, 0, size)
+    }
+    private fun getLastMapperIndex(position: Long):Int{
        return (position/sizePerMap).toInt()
     }
-    private fun resizeMaps(position: Long){
+    private fun getPositionInLastMapper(position: Long):Long{
+        return position%sizePerMap;
+    }
 
+    private fun resizeMaps(newSize: Long){
+        val oldSize = fileSize
+        if(newSize == oldSize){
+            return
+        }
+        val lastMapperIndex = getLastMapperIndex(newSize)
+        val currentIndex = mapArray.size-1
+        val positionInLastMapper = getPositionInLastMapper(newSize)
+        if(lastMapperIndex==currentIndex){
+            mapArray[lastMapperIndex].force()
+            mapArray[lastMapperIndex] = mapper(lastMapperIndex,positionInLastMapper)
+        }else if (lastMapperIndex>currentIndex){
+            if (mapArray[currentIndex].capacity()<sizePerMap) {
+                mapArray[currentIndex] = mapper(currentIndex,sizePerMap)
+            }
+            for(i in currentIndex+1 until lastMapperIndex){
+                mapArray.add(mapper(i,sizePerMap))
+            }
+            mapArray.add(mapper(lastMapperIndex,positionInLastMapper))
+        }else { //lastMapperIndex<currentIndex
+            for(i in currentIndex downTo lastMapperIndex+1){
+                mapArray.removeAt(i)
+                    .force()
+            }
+            mapArray[lastMapperIndex].force()
+            mapArray[lastMapperIndex] = mapper(lastMapperIndex,positionInLastMapper)
+        }
     }
     override var fileSize: Long = 0
         set(value) {
+            resizeMaps(value)
             field = value
-            value
         }
 
     override fun position(position: Long): FileMapper {
-        TODO("Not yet implemented")
+        fileMapper = mapArray[getLastMapperIndex(position)]
+        fileMapper.position(getPositionInLastMapper(position).toInt())
+        return this
     }
 
     override fun position(position: Int): FileMapper {
-        TODO("Not yet implemented")
+        return position(position.toLong())
     }
 
     override fun writeBytes(value: ByteArray) {
@@ -261,35 +300,35 @@ class MergedMemoryMapMapper(
     }
 
     override fun writeByte(value: Byte) {
-        TODO("Not yet implemented")
+        fileMapper.put(value)
     }
 
     override fun writeInt(value: Int) {
-        TODO("Not yet implemented")
+        fileMapper.putInt(value)
     }
 
     override fun writeLong(value: Long) {
-        TODO("Not yet implemented")
+        fileMapper.putLong(value)
     }
 
     override fun writeDouble(value: Double) {
-        TODO("Not yet implemented")
+        fileMapper.putDouble(value)
     }
 
     override fun readInt(): Int {
-        TODO("Not yet implemented")
+       return fileMapper.int
     }
 
     override fun readLong(): Long {
-        TODO("Not yet implemented")
+       return fileMapper.long
     }
 
     override fun readDouble(): Double {
-        TODO("Not yet implemented")
+        return  fileMapper.double
     }
 
     override fun readByte(): Byte {
-        TODO("Not yet implemented")
+        return fileMapper.get()
     }
 
     override fun readBytes(value: ByteArray) {
@@ -297,6 +336,6 @@ class MergedMemoryMapMapper(
     }
 
     override fun force() {
-        TODO("Not yet implemented")
+        mapArray.forEach { it.force() }
     }
 }
