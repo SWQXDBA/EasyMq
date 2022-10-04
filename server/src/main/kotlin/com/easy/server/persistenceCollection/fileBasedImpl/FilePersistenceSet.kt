@@ -9,13 +9,11 @@ import java.util.*
 class FilePersistenceSet<E>(
     filePath: String,
     serializer: Serializer<E>,
-    autoForceMills: Long = 10,
-    forcePerOption: Boolean = false,
     initCap: Int = 16
 ) :
     PersistenceSet<E> {
 
-    val map = FilePersistenceMap(filePath, serializer, unitSerializer, autoForceMills, forcePerOption, initCap)
+    val map = FilePersistenceMap(filePath, serializer, unitSerializer, initCap)
     override fun add(element: E): Boolean {
         val contains = map.containsKey(element)
         map[element] = Unit

@@ -25,7 +25,7 @@ public class Topic {
 
     public static PersistenceSet<String> topics =
             new FilePersistenceSet<>("topics",
-            new JdkSerializer<>(String.class),10,true,10);
+            new JdkSerializer<>(String.class),10);
 
     String name;
     List<MessageQueue> logicQueues = new ArrayList<>();
@@ -63,8 +63,6 @@ public class Topic {
         persistenceMessageMetaInfo = Collections.synchronizedList(
                 new FilePersistenceArrayList<>(name + "MetaInfo",
                         new JdkSerializer<>(MessageMetaInfo.class),
-                        100,
-                        false,
                         1000,
                         FileMapperType.MemoryMapMapper
                 )
@@ -88,8 +86,7 @@ public class Topic {
                 name + "TopicMessages",
                 new JdkSerializer<>(MessageId.class),
                 new JdkSerializer<>(TransmissionMessage.class),
-                10,
-                false,
+
                 1000,
                 -1f,
                 FileMapperType.MemoryMapMapper)

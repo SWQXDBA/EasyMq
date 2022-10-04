@@ -1,6 +1,8 @@
 package com.easy.server.persistenceCollection
 
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.IntBuffer
 import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import java.nio.file.Files
@@ -69,6 +71,7 @@ class MemoryMapMapper(
 ) : FileMapper {
 
     private lateinit var fileMapper: MappedByteBuffer
+
 
     override var fileSize: Long = 0
         set(value) {
@@ -228,66 +231,90 @@ class RandomAccessFileMapper(
 
 class MergedMemoryMapMapper(
     val filePath: String,
-    val initFileSize: Long
+    initFileSize: Long
 ) : FileMapper {
 
-    val sizePerMap:Long = Int.MAX_VALUE-1024.toLong()
-    private lateinit var fileMapper: MappedByteBuffer
+
+    //    Int.MAX_VALUE - 1024.toLong()
+    val sizePerMap: Long = 1024 * 1024
+    private lateinit var selectedMapper: MappedByteBuffer
+    private var selectedMapperIndex: Int = 0
     val mapArray = mutableListOf<MappedByteBuffer>()
-    var mapCount:Int = 0
-
-
-    private fun getMapperFileName(index:Int):String{
-        return "$filePath - $index"
-    }
-    private fun mapper(index:Int, size:Long): MappedByteBuffer{
-        return  FileChannel.open(Path.of(getMapperFileName(index)), StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE)
-                .map(FileChannel.MapMode.READ_WRITE, 0, size)
-    }
-    private fun getLastMapperIndex(position: Long):Int{
-       return (position/sizePerMap).toInt()
-    }
-    private fun getPositionInLastMapper(position: Long):Long{
-        return position%sizePerMap;
-    }
-
-    private fun resizeMaps(newSize: Long){
-        val oldSize = fileSize
-        if(newSize == oldSize){
-            return
-        }
-        val lastMapperIndex = getLastMapperIndex(newSize)
-        val currentIndex = mapArray.size-1
-        val positionInLastMapper = getPositionInLastMapper(newSize)
-        if(lastMapperIndex==currentIndex){
-            mapArray[lastMapperIndex].force()
-            mapArray[lastMapperIndex] = mapper(lastMapperIndex,positionInLastMapper)
-        }else if (lastMapperIndex>currentIndex){
-            if (mapArray[currentIndex].capacity()<sizePerMap) {
-                mapArray[currentIndex] = mapper(currentIndex,sizePerMap)
-            }
-            for(i in currentIndex+1 until lastMapperIndex){
-                mapArray.add(mapper(i,sizePerMap))
-            }
-            mapArray.add(mapper(lastMapperIndex,positionInLastMapper))
-        }else { //lastMapperIndex<currentIndex
-            for(i in currentIndex downTo lastMapperIndex+1){
-                mapArray.removeAt(i)
-                    .force()
-            }
-            mapArray[lastMapperIndex].force()
-            mapArray[lastMapperIndex] = mapper(lastMapperIndex,positionInLastMapper)
-        }
-    }
+    private val _64 = 64;
     override var fileSize: Long = 0
         set(value) {
             resizeMaps(value)
             field = value
         }
 
+    init {
+        fileSize = initFileSize
+    }
+
+    private fun getMapperFileName(index: Int): String {
+        return "$filePath - $index"
+    }
+
+    private fun mapper(index: Int, size: Long): MappedByteBuffer {
+        return FileChannel.open(
+            Path.of(getMapperFileName(index)),
+            StandardOpenOption.CREATE,
+            StandardOpenOption.READ,
+            StandardOpenOption.WRITE
+        )
+            .map(FileChannel.MapMode.READ_WRITE, 0, size)
+    }
+
+    private fun getLastMapperIndex(position: Long): Int {
+        return (position / sizePerMap).toInt()
+    }
+
+    private fun getPositionInLastMapper(position: Long): Long {
+        return position % sizePerMap;
+    }
+
+    private fun resizeMaps(newSize: Long) {
+        val oldSize = fileSize
+        if (newSize == oldSize) {
+            return
+        }
+        if (mapArray.isEmpty()) {
+            if (newSize >= sizePerMap) {
+                mapArray.add(mapper(0, sizePerMap))
+            } else {
+                mapArray.add(mapper(0, newSize))
+            }
+        }
+        val newMapperIndex = getLastMapperIndex(newSize)
+        val currentLastMapperIndex = mapArray.size - 1
+        val positionInLastMapper = getPositionInLastMapper(newSize)
+        if (newMapperIndex == currentLastMapperIndex) {
+            mapArray[newMapperIndex].force()
+            mapArray[newMapperIndex] = mapper(newMapperIndex, positionInLastMapper)
+        } else if (newMapperIndex > currentLastMapperIndex) {
+            if (mapArray[currentLastMapperIndex].capacity() < sizePerMap) {
+                mapArray[currentLastMapperIndex] = mapper(currentLastMapperIndex, sizePerMap)
+            }
+            for (i in currentLastMapperIndex + 1 until newMapperIndex) {
+                mapArray.add(mapper(i, sizePerMap))
+            }
+            mapArray.add(mapper(newMapperIndex, positionInLastMapper))
+        } else { //lastMapperIndex<currentIndex
+            for (i in currentLastMapperIndex downTo newMapperIndex + 1) {
+                mapArray.removeAt(i)
+                    .force()
+            }
+            mapArray[newMapperIndex].force()
+            mapArray[newMapperIndex] = mapper(newMapperIndex, positionInLastMapper)
+        }
+    }
+
+
     override fun position(position: Long): FileMapper {
-        fileMapper = mapArray[getLastMapperIndex(position)]
-        fileMapper.position(getPositionInLastMapper(position).toInt())
+        selectedMapperIndex = getLastMapperIndex(position)
+        selectedMapper = mapArray[selectedMapperIndex]
+        selectedMapper.position(getPositionInLastMapper(position).toInt())
+
         return this
     }
 
@@ -295,44 +322,89 @@ class MergedMemoryMapMapper(
         return position(position.toLong())
     }
 
+
     override fun writeBytes(value: ByteArray) {
-        TODO("Not yet implemented")
+        var mapper = selectedMapper
+        var mapperIndex = selectedMapperIndex
+        var position = mapper.position()
+        if (position + value.size <= sizePerMap) {
+            mapper.put(value)
+        } else {
+
+            var offset = 0
+            while (offset < value.size) {
+                val bytesCanWriteInThisMapper = mapper.capacity() - position
+                mapper.put(value, offset, bytesCanWriteInThisMapper)
+
+                offset += bytesCanWriteInThisMapper
+                position = 0
+                if (offset == value.size) {
+                    return
+                }
+                mapper = mapArray[++mapperIndex]
+            }
+
+        }
     }
 
+
+
     override fun writeByte(value: Byte) {
-        fileMapper.put(value)
+        selectedMapper.put(value)
     }
 
     override fun writeInt(value: Int) {
-        fileMapper.putInt(value)
+        val put = IntBuffer.allocate(1).put(value)
+
+        writeBytes(put.array())
     }
 
     override fun writeLong(value: Long) {
-        fileMapper.putLong(value)
+        selectedMapper.putLong(value)
     }
 
     override fun writeDouble(value: Double) {
-        fileMapper.putDouble(value)
+        selectedMapper.putDouble(value)
     }
 
     override fun readInt(): Int {
-       return fileMapper.int
+        return selectedMapper.int
     }
 
     override fun readLong(): Long {
-       return fileMapper.long
+        return selectedMapper.long
     }
 
     override fun readDouble(): Double {
-        return  fileMapper.double
+        return selectedMapper.double
     }
 
     override fun readByte(): Byte {
-        return fileMapper.get()
+        return selectedMapper.get()
     }
 
     override fun readBytes(value: ByteArray) {
-        TODO("Not yet implemented")
+        var mapper = selectedMapper
+        var mapperIndex = selectedMapperIndex
+        var position = mapper.position()
+        if (position + value.size <= sizePerMap) {
+            mapper.get(value)
+        } else {
+
+            var offset = 0
+            while (offset < value.size) {
+                val bytesCanWriteInThisMapper = mapper.capacity() - position
+                mapper.get(value, offset, bytesCanWriteInThisMapper)
+
+                offset += bytesCanWriteInThisMapper
+                position = 0
+                if (offset == value.size) {
+                    return
+                }
+                mapper = mapArray[++mapperIndex]
+            }
+
+        }
     }
 
     override fun force() {

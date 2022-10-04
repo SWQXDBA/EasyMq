@@ -8,8 +8,6 @@ open class FilePersistenceMap<K, V>(
     filePath: String,
     val keySerializer: Serializer<K>,
     val valueSerializer: Serializer<V>,
-    autoForceMills: Long = 10,
-    forcePerOption: Boolean = false,
     initCap: Int = 5000,
 
     /**
@@ -22,7 +20,7 @@ open class FilePersistenceMap<K, V>(
      */
     val valueRedundancyBytesRatio: Float = -1f,
     fileMapperType: FileMapperType = FileMapperType.MemoryMapMapper
-) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap,fileMapperType) {
+) : PersistenceMap<K, V>, AbstractFilePersistenceCollection(filePath, initCap,fileMapperType) {
 
 
     companion object {

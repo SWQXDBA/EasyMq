@@ -7,11 +7,9 @@ import kotlin.properties.Delegates
 class FilePersistenceArrayList<E>(
     filePath: String,
     val serializer: Serializer<E>,
-    autoForceMills: Long = 10,
-    forcePerOption: Boolean = false,
     initCap: Int = 16,
     fileMapperType: FileMapperType = FileMapperType.MemoryMapMapper
-) : PersistenceList<E>, AbstractFilePersistenceCollection(filePath, autoForceMills, forcePerOption, initCap,fileMapperType) {
+) : PersistenceList<E>, AbstractFilePersistenceCollection(filePath, initCap,fileMapperType) {
     override fun equals(other: Any?): Boolean {
         if(other !is  List<*>||size!=other.size){
             return false

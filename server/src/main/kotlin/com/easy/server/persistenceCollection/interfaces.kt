@@ -14,7 +14,7 @@ object FileType {
 
 }
 enum class FileMapperType{
-    MemoryMapMapper,RandomAccessFileMapper
+    MemoryMapMapper,RandomAccessFileMapper,MergedMemoryMapMapper
 }
 
 val LongBytesSize = 8

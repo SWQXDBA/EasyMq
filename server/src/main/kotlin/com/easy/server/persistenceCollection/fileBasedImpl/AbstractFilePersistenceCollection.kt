@@ -1,9 +1,6 @@
 package com.easy.server.persistenceCollection.fileBasedImpl
 
-import com.easy.server.persistenceCollection.FileMapper
-import com.easy.server.persistenceCollection.FileMapperType
-import com.easy.server.persistenceCollection.MemoryMapMapper
-import com.easy.server.persistenceCollection.RandomAccessFileMapper
+import com.easy.server.persistenceCollection.*
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -11,12 +8,11 @@ import kotlinx.coroutines.launch
 
 abstract class AbstractFilePersistenceCollection(
     filePath: String,
-    val autoForceMills: Long = 10,
-    val forcePerOption: Boolean = false,
-    val initCap: Int = 16,
-    val fileMapperType: FileMapperType
+    var initCap: Int = 16,
+     fileMapperType: FileMapperType
 ) {
     var fileMapper: FileMapper
+    var autoForceMills: Long = 10
 
     var fileSize: Long
         get() = fileMapper.fileSize
@@ -31,6 +27,7 @@ abstract class AbstractFilePersistenceCollection(
         fileMapper =  when(fileMapperType){
             FileMapperType.MemoryMapMapper-> MemoryMapMapper(filePath, initFileSize)
             FileMapperType.RandomAccessFileMapper ->  RandomAccessFileMapper(filePath, initFileSize)
+            FileMapperType.MergedMemoryMapMapper  ->  MergedMemoryMapMapper(filePath, initFileSize)
         }
 
 

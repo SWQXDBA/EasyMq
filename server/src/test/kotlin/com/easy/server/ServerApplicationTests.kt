@@ -24,7 +24,7 @@ class ServerApplicationTests {
     @Test
     fun arraylistTest() {
 
-        Files.delete(Path.of("./test2.txt"))
+        Files.deleteIfExists(Path.of("./test2.txt"))
         val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Int::class.java))
 
         val list = mutableListOf<Int>()
@@ -174,8 +174,6 @@ class ServerApplicationTests {
             FilePersistenceMap("./test2.txt",
                 JacksonSerializer(String::class.java),
                 JacksonSerializer(String::class.java),
-                10,
-                false,
                 10000*1000*2,
                 -1f,
                 FileMapperType.RandomAccessFileMapper
@@ -541,6 +539,24 @@ class ServerApplicationTests {
         println("com ${persistenceList.compress()}")
         println(persistenceList.usageFileSize)
         println(persistenceList)
+
+    }
+    @Test
+    fun fileTest11() {
+
+        Files.deleteIfExists(Path.of("./test2.txt"))
+        val persistenceList = FilePersistenceArrayList("./test2.txt", JacksonSerializer(Data::class.java),
+            16,
+            FileMapperType.MergedMemoryMapMapper)
+
+        var i:Long = 0
+        while(i<50000){
+            persistenceList.add(Data("str:: $i", i.toInt()))
+            i++
+        }
+        println(persistenceList.size)
+
+
 
     }
 }
