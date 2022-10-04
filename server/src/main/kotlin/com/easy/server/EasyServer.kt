@@ -68,7 +68,7 @@ class EasyServer(
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()
                             //服务器5秒内没有接收到可读请求则触发事件
-                            .addLast(IdleStateHandler(5,0,0,TimeUnit.SECONDS))
+                            .addLast(IdleStateHandler(6,0,0,TimeUnit.SECONDS))
                             //心跳包检测
                             .addLast(IdleHandler())
                             .addLast(dataInboundCounter)

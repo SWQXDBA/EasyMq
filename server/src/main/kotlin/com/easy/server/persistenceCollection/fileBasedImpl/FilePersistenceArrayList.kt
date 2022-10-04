@@ -337,6 +337,7 @@ class FilePersistenceArrayList<E>(
      * 压缩文件
      * return 压缩了多少bytes
      */
+    @Synchronized
     fun compress(): Long {
 
         var space = 0L
@@ -373,12 +374,16 @@ class FilePersistenceArrayList<E>(
             head = next
         }
         usageFileSize -= space
+        if(usageFileSize<fileSize/100){
+            fileSize = usageFileSize*2
+        }
         return space
     }
 
     /**
      * 分配新的空间 然后复制数组即可
      */
+    @Synchronized
     override fun expansion(newCap: Int) {
 
 
@@ -411,47 +416,47 @@ class FilePersistenceArrayList<E>(
         }
     }
 
-
+    @Synchronized
     override fun contains(element: E): Boolean {
         search(element) ?: return false
         return true
     }
-
+    @Synchronized
     override fun containsAll(elements: Collection<E>): Boolean {
         return allSuccess(elements) {
             contains(it)
         }
     }
-
+    @Synchronized
     override fun get(index: Int): E {
         checkIndex(index)
 
         return indexArray[index].getBlock().value
     }
-
+    @Synchronized
     override fun indexOf(element: E): Int {
         val pointer = search(element) ?: return -1
         return pointer.index
     }
-
+    @Synchronized
     override fun isEmpty(): Boolean {
         return size == 0
     }
-
+    @Synchronized
     override fun iterator(): MutableIterator<E> {
         return listIterator()
     }
-
+    @Synchronized
     override fun lastIndexOf(element: E): Int {
         val pointer = search(element, size - 1 downTo 0) ?: return -1
         return pointer.index
     }
-
+    @Synchronized
     override fun add(element: E): Boolean {
         add(size, element)
         return true
     }
-
+    @Synchronized
     override fun add(index: Int, element: E) {
 
         if (index < 0 || index > size) {
@@ -481,32 +486,32 @@ class FilePersistenceArrayList<E>(
         size++
     }
 
-
+    @Synchronized
     override fun addAll(index: Int, elements: Collection<E>): Boolean {
         elements.forEach {
             add(index, it)
         }
         return true
     }
-
+    @Synchronized
     override fun addAll(elements: Collection<E>): Boolean {
         elements.forEach {
             add(size - 1, it)
         }
         return true
     }
-
+    @Synchronized
     override fun clear() {
         while (!isEmpty()) {
             indexArray[size-1].remove()
         }
 
     }
-
+    @Synchronized
     override fun listIterator(): MutableListIterator<E> {
         return listIterator(0)
     }
-
+    @Synchronized
     override fun listIterator(index: Int): MutableListIterator<E> {
         return object : MutableListIterator<E> {
             var current = index
@@ -552,7 +557,7 @@ class FilePersistenceArrayList<E>(
 
         }
     }
-
+    @Synchronized
     private fun search(element: E, progression: IntProgression = 0 until size): Pointer? {
         for (i in progression) {
             val pointer = indexArray[i]
@@ -565,20 +570,20 @@ class FilePersistenceArrayList<E>(
         }
         return null
     }
-
+    @Synchronized
     override fun remove(element: E): Boolean {
         val pointer = search(element) ?: return false
         pointer.remove()
 
         return true
     }
-
+    @Synchronized
     override fun removeAll(elements: Collection<E>): Boolean {
         return allSuccess(elements) {
             remove(it)
         }
     }
-
+    @Synchronized
     override fun removeAt(index: Int): E {
         checkIndex(index)
         val pointer = indexArray[index]
@@ -586,17 +591,17 @@ class FilePersistenceArrayList<E>(
         pointer.remove()
         return value
     }
-
+    @Synchronized
     override fun retainAll(elements: Collection<E>): Boolean {
         return retainAll(elements, iterator())
     }
-
+    @Synchronized
     private fun checkIndex(index: Int) {
         if (index < 0 || index >= size) {
             throw java.lang.IndexOutOfBoundsException("error index  $index")
         }
     }
-
+    @Synchronized
     override fun set(index: Int, element: E): E {
         checkIndex(index)
         val pointer = indexArray[index]
@@ -604,7 +609,7 @@ class FilePersistenceArrayList<E>(
         pointer.replace(dataBlock)
         return element
     }
-
+    @Synchronized
     /**
      * 此方法不返回一个view 而是返回一个新的集合
      */
@@ -617,7 +622,7 @@ class FilePersistenceArrayList<E>(
         }
         return mutableList
     }
-
+    @Synchronized
     override fun toString(): String {
         return iterToString(iterator())
     }

@@ -89,9 +89,11 @@ public class EasyClient {
      */
     public EasyClient(int port, String host, String groupName, String clientName) {
         serverNodes.add(new Node(port,host));
-        this.groupName = groupName;
-        connectActiveHandler = new ConnectActiveHandler(groupName, clientName);
-        consumerToServerMessage = new ConsumerToServerMessage(groupName);
+        if(groupName!=null){
+            this.groupName = groupName;
+            connectActiveHandler = new ConnectActiveHandler(groupName, clientName);
+            consumerToServerMessage = new ConsumerToServerMessage(groupName);
+        }
         this.clientName = clientName;
     }
 
@@ -131,7 +133,7 @@ public class EasyClient {
         if (channel == null) {
             return;
         }
-        if (channel.channel().isWritable()|| (currentMessageCache.messages.size()>500)) {
+        if (channel.channel().isWritable()) {
             doSend();
         }
     }
@@ -239,14 +241,15 @@ public class EasyClient {
             sentMessage.addAndGet(currentMessage.messages.size());
 
         }
-        //回应收到的消息id
-
-        if (!this.consumerToServerMessage.confirmationResponse.isEmpty()) {
-            final ConsumerToServerMessage message = this.consumerToServerMessage;
-            this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
-            channel.channel().writeAndFlush(message);
-
+        if(this.groupName!=null){
+            //回应收到的消息id
+            if (!this.consumerToServerMessage.confirmationResponse.isEmpty()) {
+                final ConsumerToServerMessage message = this.consumerToServerMessage;
+                this.consumerToServerMessage = new ConsumerToServerMessage(groupName);
+                channel.channel().writeAndFlush(message);
+            }
         }
+
     }
 
     private Node nextNode(){

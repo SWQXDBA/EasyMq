@@ -10,14 +10,11 @@ import com.easy.server.persistenceCollection.PersistenceSet;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceMap;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceSet;
-import org.springframework.cglib.core.WeakCacheKey;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,7 +35,7 @@ public class Topic {
     static final long messageCheckTimeSeconds = 5;
     static final long redeliverTimedOutMessageIntervalSeconds = 1;
 
-    List<MessageMetaInfo> persistenceMessageMetaInfo;
+    FilePersistenceArrayList<MessageMetaInfo> persistenceMessageMetaInfo;
 
     /**
      * 储存一些可丢失的信息，比如消息已经被哪些消费者组消费过
@@ -63,13 +60,12 @@ public class Topic {
 
     public Topic(String name) {
         topics.add(name);
-        persistenceMessageMetaInfo = Collections.synchronizedList(
+        persistenceMessageMetaInfo =
                 new FilePersistenceArrayList<>(name + "MetaInfo",
                         new JdkSerializer<>(MessageMetaInfo.class),
                         1000,
                         FileMapperType.MergedMemoryMapMapper
-                )
-        );
+                );
 
         if (persistenceMessageMetaInfo.isEmpty()) {
             messageMetaInfo = new MessageMetaInfo();
@@ -83,7 +79,10 @@ public class Topic {
         }
 
         TimeScheduler.executor.scheduleWithFixedDelay(this::redeliverTimedOutMessage, 1, redeliverTimedOutMessageIntervalSeconds, TimeUnit.SECONDS);
-        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 5, TimeUnit.SECONDS);
+        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 20, TimeUnit.SECONDS);
+
+        TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
+
 
         messages =Collections.synchronizedMap(new FilePersistenceMap<>(
                 name + "TopicMessages",
@@ -98,11 +97,13 @@ public class Topic {
 
 
     public  boolean canResolve(){
-        return messageMetaInfo.consumesSendTime.size()<10000;
+        return messageMetaInfo.consumesSendTime.size()<50000;
     }
     private void saveMeta() {
 
         System.out.println(messageMetaInfo.consumesSendTime.size());
+
+
         persistenceMessageMetaInfo.clear();
         persistenceMessageMetaInfo.add(messageMetaInfo);
     }
@@ -110,30 +111,33 @@ public class Topic {
     /**
      * 检测哪些消息一直没有回应，考虑重投
      */
-    public  void redeliverTimedOutMessage() {
+    public   void redeliverTimedOutMessage() {
 
-        for (Map.Entry<MessageId, ConcurrentHashMap<String, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
-            final ConcurrentHashMap<String, LocalDateTime> value = messageEntry.getValue();
-            final MessageId messageId = messageEntry.getKey();
-            for (Map.Entry<String, LocalDateTime> timeEntry : value.entrySet()) {
+        synchronized (messageMetaInfo){
+            for (Map.Entry<MessageId, ConcurrentHashMap<String, LocalDateTime>> messageEntry : messageMetaInfo.consumesSendTime.entrySet()) {
+                final ConcurrentHashMap<String, LocalDateTime> value = messageEntry.getValue();
+                final MessageId messageId = messageEntry.getKey();
+                for (Map.Entry<String, LocalDateTime> timeEntry : value.entrySet()) {
 
-                final LocalDateTime sendTime = timeEntry.getValue();
-                final LocalDateTime now = LocalDateTime.now();
-                if (sendTime.plus(messageCheckTimeSeconds, ChronoUnit.SECONDS).isBefore(now)) {
-                    String consumerGroupName =  timeEntry.getKey();
-                    final ConsumerGroup consumerGroup = consumerGroups.get(consumerGroupName);
-                    if(consumerGroup==null){
-                        return;
+                    final LocalDateTime sendTime = timeEntry.getValue();
+                    final LocalDateTime now = LocalDateTime.now();
+                    if (sendTime.plus(messageCheckTimeSeconds, ChronoUnit.SECONDS).isBefore(now)) {
+                        String consumerGroupName =  timeEntry.getKey();
+                        final ConsumerGroup consumerGroup = consumerGroups.get(consumerGroupName);
+                        if(consumerGroup==null){
+                            return;
+                        }
+                        final TransmissionMessage message = messages.get(messageId);
+                        //这个过程中 可能已经接收到回复了 就不需要再次投递了
+                        if (message != null) {
+                            sendMessageToGroup(consumerGroup, message);
+                        }
+
                     }
-                    final TransmissionMessage message = messages.get(messageId);
-                    //这个过程中 可能已经接收到回复了 就不需要再次投递了
-                    if (message != null) {
-                        sendMessageToGroup(consumerGroup, message);
-                    }
-
                 }
             }
         }
+
     }
 
     public void registerConsumerGroup(ConsumerGroup consumerGroup) {
@@ -142,23 +146,22 @@ public class Topic {
 
     /**
      * 表示收到了consumer的回应 这个消息已被消费了
-     *
-     * @return 是否消息被所有消费者组消费完成
      */
-    public  boolean responseReceivedMessage(MessageId messageId, String groupName) {
-        final ConcurrentHashMap<String , LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
-        final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
-        if (consumerGroup == null) {
-            return true;
+    public  void responseReceivedMessage(MessageId messageId, String groupName) {
+        synchronized (messageMetaInfo){
+            final ConcurrentHashMap<String , LocalDateTime> map = messageMetaInfo.consumesSendTime.get(messageId);
+            final ConsumerGroup consumerGroup = consumerGroups.get(groupName);
+            if (consumerGroup == null||map==null) {
+                return;
+            }
+            map.remove(groupName);
+            //消息已被全部消费者组消费完成，可以丢弃
+            if (map.isEmpty()) {
+                messages.remove(messageId);
+                messageMetaInfo.consumesSendTime.remove(messageId);
+            }
         }
-        map.remove(groupName);
 
-        //消息已被全部消费者组消费完成，可以丢弃
-        if (map.isEmpty()) {
-            messages.remove(messageId);
-            return true;
-        }
-        return false;
     }
 
     public long getNextId() {

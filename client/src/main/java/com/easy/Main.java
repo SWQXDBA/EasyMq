@@ -17,30 +17,21 @@ public class Main {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
-        EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者1");
-        client.addListener(new DefaultListener<String>("topic") {
-            @Override
-            public void handle(MessageId messageId, String message) {
-                atomicLong.getAndIncrement();
-
-                client.confirmationResponse(messageId);
-            }
-        });
+        EasyClient client = new EasyClient(8081, "localhost", null,null);
 
         client.addNode(8081, "localhost");
         final ExecutorService service = Executors.newFixedThreadPool(1000);
-
 
         AtomicBoolean stop = new AtomicBoolean(false);
         service.execute(() -> {
             while (true) {
                 if (!stop.get()) {
-                    for (int i = 0; i < 1; i++) {
+                    for (int i = 0; i < 10; i++) {
                         service.execute(() -> {
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 10; j++) {
+                            for (int j = 0; j < 300; j++) {
                                 client.sendToTopic("str", "topic");
                             }
                         });
@@ -55,20 +46,7 @@ public class Main {
         });
 
 
-        service.execute(() -> {
-            long l = 0;
-            while (true) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                System.out.println(atomicLong.get() - l);
-                l = atomicLong.get();
-            }
 
-
-        });
 
         service.execute(() -> {
             while (true) {

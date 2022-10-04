@@ -47,7 +47,7 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
                     val topics = server.topics
                     val topic = topics.computeIfAbsent(topicName) { name: String? -> Topic(name) }
 
-                    while (!topic.canResolve()&&channelHandlerContext.channel().config().isAutoRead) {
+                    while (!topic.canResolve()) {
                         channelHandlerContext.channel().config().isAutoRead = false
                         delay(100)
                     }
