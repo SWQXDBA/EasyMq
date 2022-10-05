@@ -28,6 +28,6 @@ public class MessageMetaInfo  implements Serializable {
     /**
      * 消费者在队列上的消费位置
      */
-    public ConcurrentHashMap<String,Long> consumerPosition;
+    public ConcurrentHashMap<String,Long> consumerPosition = new ConcurrentHashMap<>();
 
 }

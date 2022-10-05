@@ -12,7 +12,7 @@ public class Main2 {
         AtomicLong atomicLong = new AtomicLong();
 
 
-        EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者4");
+        EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者00");
         client.addListener(new DefaultListener<String>("topic") {
             @Override
             public void handle(MessageId messageId, String message) {

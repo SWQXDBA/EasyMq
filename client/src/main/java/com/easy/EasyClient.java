@@ -229,6 +229,7 @@ public class EasyClient {
 
     public void confirmationResponse(MessageId messageId) {
         consumerToServerMessage.confirmationResponse.add(messageId);
+        doSend();
     }
 
     private synchronized void doSend() {

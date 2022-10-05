@@ -9,9 +9,11 @@ import com.easy.server.persistenceCollection.JdkSerializer;
 import com.easy.server.persistenceCollection.PersistenceSet;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceSet;
+import org.springframework.util.StopWatch;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -47,7 +49,7 @@ public class Topic {
     /**
      * 这个topic上的所有消息
      */
-    final FilePersistenceArrayList<TransmissionMessage> messages;
+    final List<TransmissionMessage> messages;
 
 
 
@@ -72,20 +74,30 @@ public class Topic {
 
 
         TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
+        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 5, 5, TimeUnit.SECONDS);
 
 
-        messages =new FilePersistenceArrayList<>(
-                name + "messages",
-                new JdkSerializer<>(TransmissionMessage.class),
-                1000,
-                FileMapperType.MergedMemoryMapMapper);
+        messages  =
+                new FilePersistenceArrayList<>(
+                        name + "messages",
+                        new JdkSerializer<>(TransmissionMessage.class),
+                        1000000,
+                        FileMapperType.MergedMemoryMapMapper);
 
 
     }
 
 
+    public void saveMeta(){
+        persistenceMessageMetaInfo.add(messageMetaInfo);
+    }
 
     public void registerConsumerGroup(ConsumerGroup consumerGroup) {
+        ConcurrentHashMap<String, Long> consumerPosition = messageMetaInfo.consumerPosition;
+        if(!consumerPosition.containsKey(consumerGroup.groupName)){
+            consumerPosition.put(consumerGroup.groupName,0L);
+        }
+        consumerGroup.setOffset(this,consumerPosition.get(consumerGroup.groupName));
         consumerGroups.putIfAbsent(consumerGroup.groupName, consumerGroup);
     }
 
@@ -114,15 +126,21 @@ public class Topic {
         final Map<MessageId, Void> setView = receivedMessages;
         setView.put(message.id, null);
 
+
         synchronized (messages){
             message.id.setOffset((long) messages.size());
             messages.add(message);
         }
+
+
         trySendMessage(message);
     }
 
     public TransmissionMessage pullMessage(Long offset){
-       return messages.get(Math.toIntExact(offset));
+
+            return messages.get(Math.toIntExact(offset));
+
+
     }
     /**
      * 暂时实现： 在确认应答后即时删除
@@ -134,6 +152,10 @@ public class Topic {
         receivedMessages.remove(messageId);
     }
 
+    public void setConsumerGroupOffset(ConsumerGroup group,Long offset){
+
+        messageMetaInfo.consumerPosition.put(group.groupName,offset);
+    }
 
 
 

@@ -44,7 +44,6 @@ abstract class AbstractFilePersistenceCollection(
 
     fun resizeFile(magnification: Int = 2) {
 
-
         fileSize *= magnification
     }
     /**

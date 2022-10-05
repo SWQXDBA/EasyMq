@@ -64,6 +64,7 @@ class EasyServer(
         try {
             serverBootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel::class.java)
+                .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,WriteBufferWaterMark(1024*1024*4,1024*1024*16))
                 .childHandler(object : ChannelInitializer<SocketChannel>() {
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()

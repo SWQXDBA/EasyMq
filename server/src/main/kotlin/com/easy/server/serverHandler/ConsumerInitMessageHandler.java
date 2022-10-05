@@ -35,6 +35,7 @@ public class ConsumerInitMessageHandler extends SimpleChannelInboundHandler<Cons
             Topic topic = topics.computeIfAbsent(listenedTopic, Topic::new);
             final ConsumerGroup consumerGroup = consumerGroups.computeIfAbsent(msg.getConsumerGroupName(), ConsumerGroup::new);
 
+
             //加入消费者组
             consumerGroup.addOrUpdateConsumer(msg,ctx.channel());
 

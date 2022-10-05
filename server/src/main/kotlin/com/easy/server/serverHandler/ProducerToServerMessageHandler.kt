@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
+import org.springframework.util.StopWatch
 import java.net.InetSocketAddress
 import java.net.SocketAddress
 
@@ -41,17 +42,13 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
         GlobalScope.launch {
             for (messageUnit in producerToServerMessage.messages) {
                 launch flag@{
+
                     //生成messageId
                     val messageId = messageUnit.messageId
                     val topicName = messageId.topicName
                     val topics = server.topics
                     val topic = topics.computeIfAbsent(topicName) { name: String? -> Topic(name) }
 
-                    while (!topic.canResolve()) {
-                        channelHandlerContext.channel().config().isAutoRead = false
-                        delay(100)
-                    }
-                    channelHandlerContext.channel().config().isAutoRead = true
 
 
 
