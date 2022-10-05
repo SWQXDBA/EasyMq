@@ -12,10 +12,14 @@ public class MessageId implements Serializable {
 
     String producerName;
     /**
-     * 全局唯的id 由消息生产者提供
+     * 对于一个生产的唯一id 由消息生产者提供
      */
     String uid;
 
+    /**
+     * 在队列上的偏移量 由服务端设置
+     */
+    Long offset;
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -40,6 +44,14 @@ public class MessageId implements Serializable {
 
     public String getTopicName() {
         return topicName;
+    }
+
+    public Long getOffset() {
+        return offset;
+    }
+
+    public void setOffset(Long offset) {
+        this.offset = offset;
     }
 
     public void setTopicName(String topicName) {

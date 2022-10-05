@@ -26,9 +26,8 @@ public class MessageMetaInfo  implements Serializable {
     String topicName;
 
     /**
-     * 消息发送的大致时间 仅仅是topic的sendToGroup时记录的，消息不一定会被立刻发送
-     * String: ConsumerGroupName
+     * 消费者在队列上的消费位置
      */
-    public  ConcurrentHashMap<MessageId, ConcurrentHashMap<String, LocalDateTime>> consumesSendTime = new ConcurrentHashMap<>();
+    public ConcurrentHashMap<String,Long> consumerPosition;
 
 }

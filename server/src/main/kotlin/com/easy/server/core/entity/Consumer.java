@@ -6,12 +6,8 @@ import com.easy.core.message.TransmissionMessage;
 import io.netty.channel.Channel;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * 表示建立了连接的一个消费者 用来发送消息
@@ -31,6 +27,7 @@ public class Consumer extends Client {
     //一次性最多批量发送多少数据 如果数据太大 序列化会出问题
     final static int BatchSendBytesSize = 1024 * 1024;
     private Channel channel;
+
 
 
     public void resetChannel(Channel channel) {
