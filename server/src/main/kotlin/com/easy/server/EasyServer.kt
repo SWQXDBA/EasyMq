@@ -58,11 +58,11 @@ class EasyServer(
 
         val serverBootstrap = ServerBootstrap()
         val bossGroup = NioEventLoopGroup()
-        val workGroup = NioEventLoopGroup(1024)
+        val workGroup = NioEventLoopGroup(12)
 
-        val e = DefaultEventExecutorGroup(12)
+        val workGroup2 = DefaultEventExecutorGroup(12)
         try {
-            serverBootstrap.group(bossGroup, workGroup)
+            serverBootstrap.group(bossGroup,workGroup)
                 .channel(NioServerSocketChannel::class.java)
                 .childOption(ChannelOption.WRITE_BUFFER_WATER_MARK,WriteBufferWaterMark(1024*1024*4,1024*1024*16))
                 .childHandler(object : ChannelInitializer<SocketChannel>() {
@@ -75,13 +75,13 @@ class EasyServer(
                             .addLast(dataInboundCounter)
                             .addLast(ReadableControl())
 //                            .addLast(LoggingHandler(LogLevel.INFO))
-                            .addLast(
+                            .addLast(workGroup2,
                                 ObjectDecoder(
                                     Int.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this::class.java.classLoader)
                                 )
                             )
-                            .addLast(ObjectEncoder())
+                            .addLast(workGroup2,ObjectEncoder())
 
 
 

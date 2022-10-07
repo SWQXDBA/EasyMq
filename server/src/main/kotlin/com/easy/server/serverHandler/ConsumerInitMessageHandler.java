@@ -27,6 +27,7 @@ public class ConsumerInitMessageHandler extends SimpleChannelInboundHandler<Cons
     EasyServer easyServer;
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, ConsumerInitMessage msg) throws Exception {
+        System.out.println("consumer init for "+msg.getConsumerName());
         final ConcurrentHashMap<String, Topic> topics = easyServer.getTopics();
         final HashMap<String, ConsumerGroup> consumerGroups = easyServer.getConsumerGroups();
 

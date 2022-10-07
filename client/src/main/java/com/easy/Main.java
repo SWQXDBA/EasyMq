@@ -26,12 +26,12 @@ public class Main {
         service.execute(() -> {
             while (true) {
                 if (!stop.get()) {
-                    for (int i = 0; i < 10; i++) {
+                    for (int i = 0; i < 1; i++) {
                         service.execute(() -> {
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 1000; j++) {
+                            for (int j = 0; j < 2; j++) {
                                 client.sendToTopic("str", "topic");
                             }
                         });

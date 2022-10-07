@@ -74,7 +74,7 @@ public class Topic {
 
 
         TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
-        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 5, 5, TimeUnit.SECONDS);
+        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 1, TimeUnit.SECONDS);
 
 
         messages  =
@@ -92,7 +92,7 @@ public class Topic {
         persistenceMessageMetaInfo.add(messageMetaInfo);
     }
 
-    public void registerConsumerGroup(ConsumerGroup consumerGroup) {
+    public synchronized void registerConsumerGroup(ConsumerGroup consumerGroup) {
         ConcurrentHashMap<String, Long> consumerPosition = messageMetaInfo.consumerPosition;
         if(!consumerPosition.containsKey(consumerGroup.groupName)){
             consumerPosition.put(consumerGroup.groupName,0L);

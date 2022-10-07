@@ -10,8 +10,12 @@ public class DataInboundCounter extends ChannelInboundHandlerAdapter {
 
     public DataInboundCounter() {
         new Thread(()->{
+            long current = 0;
             while (true) {
+
                 System.out.println("ChannelInboundHandlerAdapter "+atomicLong.get());
+                System.out.println("inbound speed "+(atomicLong.get() -current)/1024/1024+"mbps");
+                current = atomicLong.get();
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {

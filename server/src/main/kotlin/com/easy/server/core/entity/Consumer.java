@@ -76,6 +76,8 @@ public class Consumer extends Client {
      * @param transmissionMessage
      */
     public void putMessage(TransmissionMessage transmissionMessage) {
+
+        System.out.println("put");
         if (transmissionMessage.isNeedCallBack()) {
             sendImmediately(transmissionMessage);
         } else {
@@ -95,16 +97,18 @@ public class Consumer extends Client {
      * synchronized为了避免send多次
      */
     private void doSend() {
+
         ServerToConsumerMessage sendMessage;
         synchronized (this) {
+
             if (this.cacheMessage.getMessages().isEmpty()) {
+
                 return;
             }
             sendMessage = this.cuttingMessage();
         }
         if (channel.isActive()) {
             //注意 在这个过程中 如果说客户端断开连接 那么这一部分消息会丢失掉，需要重新发送给consumerGroup
-            
             channel.writeAndFlush(sendMessage);
         }
 

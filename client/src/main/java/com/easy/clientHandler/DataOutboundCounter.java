@@ -13,9 +13,11 @@ public class DataOutboundCounter extends ChannelOutboundHandlerAdapter {
 
     public DataOutboundCounter() {
         new Thread(()->{
+            long current = 0;
             while (true) {
                 System.out.println("ChannelOutboundHandlerAdapter "+atomicLong.get());
-
+                System.out.println("outbound speed "+(atomicLong.get() -current)/1024/1024+"mbps");
+                current = atomicLong.get();
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {

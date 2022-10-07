@@ -133,7 +133,9 @@ public class EasyClient {
         if (channel == null) {
             return;
         }
-        if (channel.channel().isWritable()) {
+        if (channel.channel().isWritable()&&this.currentMessageCache.messages.size()>=500
+        ||this.currentMessageCache.messages.size()>=1000
+        ) {
             doSend();
         }
     }
@@ -229,10 +231,15 @@ public class EasyClient {
 
     public void confirmationResponse(MessageId messageId) {
         consumerToServerMessage.confirmationResponse.add(messageId);
-        doSend();
+        if(channel.channel().isWritable()){
+            doSend();
+        }
+
     }
 
     private synchronized void doSend() {
+
+//        System.out.println("send "+ channel.channel().isWritable() +currentMessageCache.messages.size());
         //发送生产的消息
         if (!this.currentMessageCache.messages.isEmpty()) {
             final ProducerToServerMessage currentMessage = this.currentMessageCache;
@@ -251,6 +258,7 @@ public class EasyClient {
             }
         }
 
+
     }
 
     private Node nextNode(){
@@ -261,6 +269,7 @@ public class EasyClient {
     private void connect() {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
+        DefaultEventLoopGroup eventExecutors = new DefaultEventLoopGroup(10);
 
         try {
             Bootstrap b = new Bootstrap();
@@ -278,9 +287,9 @@ public class EasyClient {
                             .addLast(new IdleHandler())
                             .addLast(dataOutboundCounter)
                             //    .addLast(new SpeedTestHandler())
-                            .addLast(new ObjectDecoder(Integer.MAX_VALUE,
+                            .addLast(eventExecutors,new ObjectDecoder(Integer.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
-                            .addLast(new ObjectEncoder())
+                            .addLast(eventExecutors,new ObjectEncoder())
 
 
                             .addLast(connectActiveHandler)
@@ -318,7 +327,7 @@ public class EasyClient {
         defaultEventLoop.execute(() -> {
             while (true) {
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(200);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -328,7 +337,6 @@ public class EasyClient {
 
                 if (channel.channel().isWritable()) {
                     doSend();
-
                 }
 
             }

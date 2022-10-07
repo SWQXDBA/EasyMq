@@ -47,11 +47,13 @@ public class ConsumerGroup {
     }
 
     private synchronized boolean inWindow(Topic topic, Long offset) {
+
         Long left = lefts.get(topic);
         return offset >= left && offset < left + windowSize;
     }
 
-    public void sendMessageToGroup(Topic topic, TransmissionMessage transmissionMessage) {
+    public synchronized void sendMessageToGroup(Topic topic, TransmissionMessage transmissionMessage) {
+
         if (!sendWindows.containsKey(topic)) {
             LinkedList<Boolean> window = new LinkedList<>();
             for (int i = 0; i < windowSize; i++) {
@@ -60,7 +62,7 @@ public class ConsumerGroup {
             sendWindows.put(topic, window);
         }
 
-        startTimeout(topic, transmissionMessage);
+
         final Consumer consumer = nextActiveConsumer();
         //该组没有消费者
         if (consumer == null) {
@@ -71,10 +73,11 @@ public class ConsumerGroup {
             lefts.put(topic, id.getOffset());
         }
 
+
         if (!inWindow(topic, id.getOffset())) {
             return;
         }
-
+        startTimeout(topic, transmissionMessage);
         consumer.putMessage(transmissionMessage);
 
     }
@@ -84,12 +87,12 @@ public class ConsumerGroup {
         return (int) (offset - left);
     }
 
-    public void commitMessage(Topic topic, Long offset) {
+    public synchronized void commitMessage(Topic topic, Long offset) {
         Long left = lefts.get(topic);
         long oldRight = left + windowSize;
 
         List<Boolean> sendWindow = sendWindows.get(topic);
-        synchronized (this) {
+
             if (!inWindow(topic, offset)) {
                 return;
             }
@@ -103,7 +106,7 @@ public class ConsumerGroup {
             }
             lefts.put(topic, left);
 
-        }
+
         //根据新的窗口发送消息
         for (long i = oldRight; i < left + windowSize; i++) {
             TransmissionMessage transmissionMessage = topic.pullMessage(i);
