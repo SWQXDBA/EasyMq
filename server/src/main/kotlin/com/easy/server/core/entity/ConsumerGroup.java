@@ -54,6 +54,7 @@ public class ConsumerGroup {
 
     public synchronized void sendMessageToGroup(Topic topic, TransmissionMessage transmissionMessage) {
 
+
         if (!sendWindows.containsKey(topic)) {
             LinkedList<Boolean> window = new LinkedList<>();
             for (int i = 0; i < windowSize; i++) {
@@ -69,13 +70,10 @@ public class ConsumerGroup {
             return;
         }
         final MessageId id = transmissionMessage.id;
-        if (!lefts.containsKey(topic)) {
-            lefts.put(topic, id.getOffset());
-        }
 
 
         if (!inWindow(topic, id.getOffset())) {
-            return;
+            transmissionMessage = topic.pullMessage(lefts.get(topic));
         }
         startTimeout(topic, transmissionMessage);
         consumer.putMessage(transmissionMessage);

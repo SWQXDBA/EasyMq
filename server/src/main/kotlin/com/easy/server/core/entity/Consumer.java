@@ -77,7 +77,7 @@ public class Consumer extends Client {
      */
     public void putMessage(TransmissionMessage transmissionMessage) {
 
-        System.out.println("put");
+
         if (transmissionMessage.isNeedCallBack()) {
             sendImmediately(transmissionMessage);
         } else {

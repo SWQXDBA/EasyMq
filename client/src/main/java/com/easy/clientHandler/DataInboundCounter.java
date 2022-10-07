@@ -2,6 +2,7 @@ package com.easy.clientHandler;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
+import io.netty.util.ReferenceCountUtil;
 
 import java.util.concurrent.atomic.AtomicLong;
 @ChannelHandler.Sharable
@@ -35,6 +36,13 @@ public class DataInboundCounter extends ChannelInboundHandlerAdapter {
 
         final int i =  buf.readableBytes();
         atomicLong.getAndAdd(i);
+
         super.channelRead(ctx, msg);
+
+        //
+        // 如果作为最后一个channel 要把msg消耗掉 就是说不要用super.channelRead继续传递下去，否则会warn，
+        // 但是要手动释放引用计数 ReferenceCountUtil.release(msg) 否则会内存泄漏
+//        ReferenceCountUtil.release(msg);
+////        super.channelRead(ctx, msg);
     }
 }

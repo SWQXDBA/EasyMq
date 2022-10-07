@@ -31,7 +31,7 @@ public class Main {
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 2; j++) {
+                            for (int j = 0; j < 20000; j++) {
                                 client.sendToTopic("str", "topic");
                             }
                         });
