@@ -1,20 +1,20 @@
-package com.easy;
+package com.easy.test;
 
+import com.easy.EasyClient;
 import com.easy.core.entity.MessageId;
 import com.easy.core.listener.DefaultListener;
 
-import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class ConsumerMain {
+public class ConsumerMain2 {
     public static void main(String[] args) {
         AtomicLong atomicLong = new AtomicLong();
 
-        EasyClient client = new EasyClient(8081, "localhost", "group1", "消费者1");
-        client.addListener(new DefaultListener<String>("topic") {
+        EasyClient client = new EasyClient(8081, "localhost", "group2", "消费者2");
+        client.addListener(new DefaultListener<String>("topic2") {
             @Override
             public void handle(MessageId messageId, String message) {
                 atomicLong.getAndIncrement();
