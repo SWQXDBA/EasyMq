@@ -3,25 +3,33 @@ package com.easy.server.core.entity;
 import com.easy.core.entity.MessageId;
 import com.easy.core.message.TransmissionMessage;
 import com.easy.server.persistenceCollection.FileMapperType;
-
-
 import com.easy.server.persistenceCollection.JdkSerializer;
 import com.easy.server.persistenceCollection.PersistenceSet;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceArrayList;
 import com.easy.server.persistenceCollection.fileBasedImpl.FilePersistenceSet;
-import org.springframework.util.StopWatch;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class Topic {
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Topic)) return false;
+        Topic topic = (Topic) o;
+        return Objects.equals(name, topic.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
+    }
+
     public static PersistenceSet<String> topics =
             new FilePersistenceSet<>("topics",
-            new JdkSerializer<>(String.class),10);
+                    new JdkSerializer<>(String.class), 10);
 
     String name;
 
@@ -51,8 +59,7 @@ public class Topic {
      */
     final List<TransmissionMessage> messages;
 
-
-
+    volatile long size = 0;
 
     public Topic(String name) {
         topics.add(name);
@@ -72,12 +79,12 @@ public class Topic {
         this.name = name;
 
 
-
         TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
         TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 1, TimeUnit.SECONDS);
 
 
-        messages  =
+        messages =
+
                 new FilePersistenceArrayList<>(
                         name + "messages",
                         new JdkSerializer<>(TransmissionMessage.class),
@@ -85,63 +92,73 @@ public class Topic {
                         FileMapperType.MergedMemoryMapMapper);
 
 
+        size = messages.size();
     }
 
 
-    public void saveMeta(){
+    public void saveMeta() {
         persistenceMessageMetaInfo.add(messageMetaInfo);
     }
 
     public synchronized void registerConsumerGroup(ConsumerGroup consumerGroup) {
+
         ConcurrentHashMap<String, Long> consumerPosition = messageMetaInfo.consumerPosition;
-        if(!consumerPosition.containsKey(consumerGroup.groupName)){
-            consumerPosition.put(consumerGroup.groupName,0L);
+        if (!consumerPosition.containsKey(consumerGroup.groupName)) {
+            consumerPosition.put(consumerGroup.groupName, 0L);
         }
-        consumerGroup.setOffset(this,consumerPosition.get(consumerGroup.groupName));
         consumerGroups.putIfAbsent(consumerGroup.groupName, consumerGroup);
+        consumerGroup.initOffsetAsync(this, consumerPosition.get(consumerGroup.groupName));
+
     }
 
     /**
      * 表示收到了consumer的回应 这个消息已被消费了
      */
-    public  void responseReceivedMessage(MessageId messageId, String groupName) {
+    public void responseReceivedMessage(MessageId messageId, String groupName) {
         ConsumerGroup consumerGroup = consumerGroups.get(groupName);
-        if(consumerGroup!=null){
-            consumerGroup.commitMessage(this,messageId.getOffset());
+        if (consumerGroup != null) {
+            consumerGroup.commitMessageAsync(this, messageId.getOffset());
         }
     }
 
 
-
-
-
-    public void trySendMessage(TransmissionMessage message) {
-        for (ConsumerGroup consumerGroup : consumerGroups.values()) {
-            consumerGroup.sendMessageToGroup(this,message);
-        }
-    }
-
-    public  void putMessage(TransmissionMessage message) {
+    public void putMessage(TransmissionMessage message) {
 
         final Map<MessageId, Void> setView = receivedMessages;
         setView.put(message.id, null);
 
 
-        synchronized (messages){
+        synchronized (messages) {
             message.id.setOffset((long) messages.size());
             messages.add(message);
+            size++;
         }
 
 
-        trySendMessage(message);
     }
 
-    public TransmissionMessage pullMessage(Long offset){
-
+    public TransmissionMessage pullMessage(Long offset) {
+        if(!hasNewMessage( offset)){
+            return null;
+        }
+        synchronized (messages) {
             return messages.get(Math.toIntExact(offset));
+        }
+
+    }
+
+
+    public boolean hasNewMessage(Long offset) {
+        return offset < size;
+    }
+
+    public int totalMessageSize() {
+
+        return Math.toIntExact(size);
 
 
     }
+
     /**
      * 暂时实现： 在确认应答后即时删除
      * 理论上应该进行策略保留以供生产者查询
@@ -152,11 +169,10 @@ public class Topic {
         receivedMessages.remove(messageId);
     }
 
-    public void setConsumerGroupOffset(ConsumerGroup group,Long offset){
+    public void setConsumerGroupOffset(ConsumerGroup group, Long offset) {
 
-        messageMetaInfo.consumerPosition.put(group.groupName,offset);
+        messageMetaInfo.consumerPosition.put(group.groupName, offset);
     }
-
 
 
 }

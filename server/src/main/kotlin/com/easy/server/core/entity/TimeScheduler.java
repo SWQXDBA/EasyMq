@@ -1,12 +1,15 @@
 package com.easy.server.core.entity;
 
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.EventExecutorGroup;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
+@Slf4j
 public class TimeScheduler {
     public static ScheduledExecutorService executor = Executors.newScheduledThreadPool(4, new ThreadFactory() {
         int i = 0;
@@ -16,4 +19,52 @@ public class TimeScheduler {
             return  new Thread(r,"TimeScheduler"+i);
         }
     });
+
+
+    public static EventExecutorGroup executorGroup = new DefaultEventExecutorGroup(4, new ThreadFactory() {
+        int i = 0;
+        @Override
+        public Thread newThread(@NotNull Runnable r) {
+            i++;
+            return new Thread(r, "TimeScheduler-executor-"+i);
+        }
+    });
+    private static  ConcurrentHashMap<Object, EventExecutor> bindExecutors = new ConcurrentHashMap<>();
+    public static void runInBindExecutor(Object me,Runnable runnable,long delayMills){
+        final EventExecutor eventExecutor = bindExecutors.computeIfAbsent(me, (o -> executorGroup.next()));
+        eventExecutor.schedule(runnable,delayMills, TimeUnit.MILLISECONDS);
+    }
+    static AtomicLong count = new AtomicLong();
+    static{
+         new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(true){
+                    try {
+                        Thread.sleep(1000);
+                        System.out.println(count+"::runInBindExecutorForce");
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+    }
+    public static void runInBindExecutorForce(Object me,Runnable runnable,long delayMills){
+
+        final EventExecutor eventExecutor = bindExecutors.computeIfAbsent(me, (o -> executorGroup.next()));
+        count.getAndIncrement();
+        eventExecutor.schedule(()->{
+            count.getAndDecrement();
+            try{
+                runnable.run();
+            }catch (Exception e){
+                log.warn("execute failed , will try it again on next time ");
+                e.printStackTrace();
+                runInBindExecutorForce(me,runnable,Math.max(delayMills,100));
+            }
+        },delayMills, TimeUnit.MILLISECONDS);
+    }
+
+
 }

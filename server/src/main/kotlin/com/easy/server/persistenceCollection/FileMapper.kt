@@ -252,7 +252,24 @@ class MergedMemoryMapMapper(
         }
 
     init {
-        fileSize = initFileSize
+        if(Files.exists(Path.of(getMapperFileName(0)))){
+            var i = 0
+            var size:Long = 0;
+            while(true){
+                val name = getMapperFileName(i)
+                if(Files.exists(Path.of(name))){
+                    size+=Files.size(Path.of(name))
+                }else{
+                    fileSize = size
+                    break
+                }
+                i++;
+            }
+        }else{
+            fileSize = initFileSize
+        }
+
+
     }
 
     private fun getMapperFileName(index: Int): String {

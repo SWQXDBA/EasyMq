@@ -18,7 +18,6 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
-import kotlin.Pair;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -109,6 +108,7 @@ public class EasyClient {
         nonConfirmedMessages.remove(messageId);
     }
 
+
     /**
      * 把消息进行单向发布
      *
@@ -133,8 +133,8 @@ public class EasyClient {
         if (channel == null) {
             return;
         }
-        if (channel.channel().isWritable()&&this.currentMessageCache.messages.size()>=500
-        ||this.currentMessageCache.messages.size()>=1000
+        if ((channel.channel().isWritable()||this.currentMessageCache.messages.size()>=500)
+
         ) {
             doSend();
         }
@@ -246,6 +246,7 @@ public class EasyClient {
 
             this.currentMessageCache = new ProducerToServerMessage();
             channel.channel().writeAndFlush(currentMessage);
+
             sentMessage.addAndGet(currentMessage.messages.size());
 
         }
@@ -267,7 +268,7 @@ public class EasyClient {
     }
 
     private void connect() {
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+        EventLoopGroup workerGroup = new NioEventLoopGroup(4);
 
         DefaultEventLoopGroup eventExecutors = new DefaultEventLoopGroup(10);
 

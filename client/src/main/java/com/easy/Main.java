@@ -1,8 +1,5 @@
 package com.easy;
 
-import com.easy.core.listener.DefaultListener;
-import com.easy.core.entity.MessageId;
-
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,18 +24,19 @@ public class Main {
             while (true) {
                 if (!stop.get()) {
                     for (int i = 0; i < 1; i++) {
-                        service.execute(() -> {
+
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 20000; j++) {
+                            for (int j = 0; j < 50000; j++) {
+
                                 client.sendToTopic("str", "topic");
                             }
-                        });
+
                     }
                 }
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
