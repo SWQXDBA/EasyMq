@@ -61,38 +61,40 @@ public class Topic {
 
     volatile long size = 0;
 
-    public Topic(String name) {
-        topics.add(name);
-        persistenceMessageMetaInfo =
-                new FilePersistenceArrayList<>(name + "MetaInfo",
-                        new JdkSerializer<>(MessageMetaInfo.class),
-                        1000,
-                        FileMapperType.MergedMemoryMapMapper
-                );
+    public  Topic(String name) {
+        synchronized (Topic.class){
+            topics.add(name);
+            persistenceMessageMetaInfo =
+                    new FilePersistenceArrayList<>(name + "MetaInfo",
+                            new JdkSerializer<>(MessageMetaInfo.class),
+                            1000,
+                            FileMapperType.MergedMemoryMapMapper
+                    );
 
-        if (persistenceMessageMetaInfo.isEmpty()) {
-            messageMetaInfo = new MessageMetaInfo();
-            messageMetaInfo.topicName = name;
-        } else {
-            messageMetaInfo = persistenceMessageMetaInfo.get(persistenceMessageMetaInfo.size() - 1);
+            if (persistenceMessageMetaInfo.isEmpty()) {
+                messageMetaInfo = new MessageMetaInfo();
+                messageMetaInfo.topicName = name;
+            } else {
+                messageMetaInfo = persistenceMessageMetaInfo.get(persistenceMessageMetaInfo.size() - 1);
+            }
+            this.name = name;
+
+
+            TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
+            TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 1, TimeUnit.SECONDS);
+
+
+            messages =
+
+                    new FilePersistenceArrayList<>(
+                            name + "messages",
+                            new JdkSerializer<>(TransmissionMessage.class),
+                            1000000,
+                            FileMapperType.MergedMemoryMapMapper);
+
+
+            size = messages.size();
         }
-        this.name = name;
-
-
-        TimeScheduler.executor.scheduleWithFixedDelay(persistenceMessageMetaInfo::compress, 5, 60, TimeUnit.SECONDS);
-        TimeScheduler.executor.scheduleWithFixedDelay(this::saveMeta, 1, 1, TimeUnit.SECONDS);
-
-
-        messages =
-
-                new FilePersistenceArrayList<>(
-                        name + "messages",
-                        new JdkSerializer<>(TransmissionMessage.class),
-                        1000000,
-                        FileMapperType.MergedMemoryMapMapper);
-
-
-        size = messages.size();
     }
 
 

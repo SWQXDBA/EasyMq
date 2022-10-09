@@ -9,6 +9,7 @@ import com.easy.server.core.entity.Topic
 import io.netty.channel.ChannelHandler.Sharable
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.SimpleChannelInboundHandler
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -40,9 +41,9 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
 
 
 
-        GlobalScope.launch {
+        GlobalScope.launch (Dispatchers.IO){
             for (messageUnit in producerToServerMessage.messages) {
-                launch flag@{
+
 
                     //生成messageId
                     val messageId = messageUnit.messageId
@@ -74,7 +75,7 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
                     topic.confirmAnswerToProducer(messageId)
 
 
-                }
+
             }
 
         }

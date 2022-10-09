@@ -409,7 +409,7 @@ class MergedMemoryMapMapper(
         var mapper = selectedMapper
         var mapperIndex = selectedMapperIndex
         var position = mapper.position()
-        if (position + array.size <= sizePerMap) {
+        if (position + array.size <= mapper.capacity()) {
             if(readToArray){
                 mapper.get(array)
             }else{

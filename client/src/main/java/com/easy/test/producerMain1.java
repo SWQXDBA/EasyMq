@@ -30,7 +30,7 @@ public class producerMain1 {
                             if (stop.get()) {
                                 return;
                             }
-                            for (int j = 0; j < 15000; j++) {
+                            for (int j = 0; j < 50000; j++) {
 
                                 client.sendToTopic("str", "topic");
                             }
@@ -39,6 +39,7 @@ public class producerMain1 {
                 }
                 try {
                     Thread.sleep(1000);
+
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

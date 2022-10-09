@@ -11,7 +11,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -29,7 +28,7 @@ public class ConsumerInitMessageHandler extends SimpleChannelInboundHandler<Cons
     protected void channelRead0(ChannelHandlerContext ctx, ConsumerInitMessage msg) throws Exception {
         System.out.println("consumer init for "+msg.getConsumerName());
         final ConcurrentHashMap<String, Topic> topics = easyServer.getTopics();
-        final HashMap<String, ConsumerGroup> consumerGroups = easyServer.getConsumerGroups();
+        final ConcurrentHashMap<String, ConsumerGroup> consumerGroups = easyServer.getConsumerGroups();
 
 
         for (String listenedTopic : msg.getListenedTopics()) {

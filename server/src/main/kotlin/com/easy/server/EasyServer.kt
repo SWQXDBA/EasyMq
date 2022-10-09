@@ -43,7 +43,7 @@ class EasyServer(
 
     val topics = ConcurrentHashMap<String, Topic>();
 
-    val consumerGroups = HashMap<String, ConsumerGroup>()
+    val consumerGroups = ConcurrentHashMap<String, ConsumerGroup>()
 
 
     init {
@@ -58,9 +58,9 @@ class EasyServer(
 
         val serverBootstrap = ServerBootstrap()
         val bossGroup = NioEventLoopGroup()
-        val workGroup = NioEventLoopGroup(12)
+        val workGroup = NioEventLoopGroup()
 
-        val workGroup2 = DefaultEventExecutorGroup(12)
+
         try {
             serverBootstrap.group(bossGroup,workGroup)
                 .channel(NioServerSocketChannel::class.java)
@@ -69,19 +69,19 @@ class EasyServer(
                     override fun initChannel(ch: SocketChannel?) {
                         ch!!.pipeline()
                             //服务器5秒内没有接收到可读请求则触发事件
-                            .addLast(IdleStateHandler(6,0,0,TimeUnit.SECONDS))
+                            .addLast(IdleStateHandler(10,0,0,TimeUnit.SECONDS))
                             //心跳包检测
                             .addLast(IdleHandler())
                             .addLast(dataInboundCounter)
                             .addLast(ReadableControl())
 //                            .addLast(LoggingHandler(LogLevel.INFO))
-                            .addLast(workGroup2,
+                            .addLast(
                                 ObjectDecoder(
                                     Int.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this::class.java.classLoader)
                                 )
                             )
-                            .addLast(workGroup2,ObjectEncoder())
+                            .addLast(ObjectEncoder())
 
 
 

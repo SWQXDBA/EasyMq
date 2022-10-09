@@ -2,14 +2,14 @@ package com.easy.core.message;
 
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
 
 /**
  * 服务器发送给消费者客户端 客户端直接收到的消息
  */
 public class ServerToConsumerMessage implements Serializable {
     private static final long serialVersionUID = 1L;
-    private Collection<TransmissionMessage> messages = ConcurrentHashMap.newKeySet(8);
+    private Collection<TransmissionMessage> messages = new LinkedList<>();
 
     public Collection<TransmissionMessage> getMessages() {
         return messages;

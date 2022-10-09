@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 public class TimeScheduler {
-    public static ScheduledExecutorService executor = Executors.newScheduledThreadPool(4, new ThreadFactory() {
+    public static ScheduledExecutorService executor = Executors.newScheduledThreadPool(12, new ThreadFactory() {
         int i = 0;
         @Override
         public Thread newThread(@NotNull Runnable r) {
@@ -21,7 +21,7 @@ public class TimeScheduler {
     });
 
 
-    public static EventExecutorGroup executorGroup = new DefaultEventExecutorGroup(4, new ThreadFactory() {
+    public static EventExecutorGroup executorGroup = new DefaultEventExecutorGroup(12, new ThreadFactory() {
         int i = 0;
         @Override
         public Thread newThread(@NotNull Runnable r) {

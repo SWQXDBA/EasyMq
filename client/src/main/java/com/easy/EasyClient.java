@@ -60,8 +60,8 @@ public class EasyClient {
 
     ServerToProducerMessageHandler serverToProducerMessageHandler = new ServerToProducerMessageHandler(this);
 
-    DataInboundCounter dataInboundCounter = new DataInboundCounter();
-    DataOutboundCounter dataOutboundCounter = new DataOutboundCounter();
+//    DataInboundCounter dataInboundCounter = new DataInboundCounter();
+//    DataOutboundCounter dataOutboundCounter = new DataOutboundCounter();
 
     String groupName;
 
@@ -133,7 +133,9 @@ public class EasyClient {
         if (channel == null) {
             return;
         }
-        if ((channel.channel().isWritable()||this.currentMessageCache.messages.size()>=500)
+        if ((channel.channel().isWritable()
+             //   ||this.currentMessageCache.messages.size()>=500
+        )
 
         ) {
             doSend();
@@ -268,9 +270,8 @@ public class EasyClient {
     }
 
     private void connect() {
-        EventLoopGroup workerGroup = new NioEventLoopGroup(4);
+        EventLoopGroup workerGroup = new NioEventLoopGroup();
 
-        DefaultEventLoopGroup eventExecutors = new DefaultEventLoopGroup(10);
 
         try {
             Bootstrap b = new Bootstrap();
@@ -286,11 +287,11 @@ public class EasyClient {
                             .addLast(new IdleStateHandler(0,3,0, TimeUnit.SECONDS))
                             //心跳包检测 这里需要放在ObjectDecoder之后因为心跳是一个String " " 需要编码后才能发送出去
                             .addLast(new IdleHandler())
-                            .addLast(dataOutboundCounter)
+//                            .addLast(dataOutboundCounter)
                             //    .addLast(new SpeedTestHandler())
-                            .addLast(eventExecutors,new ObjectDecoder(Integer.MAX_VALUE,
+                            .addLast(new ObjectDecoder(Integer.MAX_VALUE,
                                     ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())))
-                            .addLast(eventExecutors,new ObjectEncoder())
+                            .addLast(new ObjectEncoder())
 
 
                             .addLast(connectActiveHandler)

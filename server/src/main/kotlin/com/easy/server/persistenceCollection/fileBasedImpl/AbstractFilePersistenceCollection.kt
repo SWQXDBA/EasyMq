@@ -12,7 +12,7 @@ abstract class AbstractFilePersistenceCollection(
      fileMapperType: FileMapperType
 ) {
     var fileMapper: FileMapper
-    var autoForceMills: Long = 10
+    var autoForceMills: Long = 1000
 
     var fileSize: Long
         get() = fileMapper.fileSize
