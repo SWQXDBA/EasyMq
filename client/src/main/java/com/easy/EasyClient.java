@@ -126,7 +126,7 @@ public class EasyClient {
             return;
         }
 
-        nonConfirmedMessages.add(unit.messageId);
+//        nonConfirmedMessages.add(unit.messageId);
 
 
         currentMessageCache.messages.add(unit);

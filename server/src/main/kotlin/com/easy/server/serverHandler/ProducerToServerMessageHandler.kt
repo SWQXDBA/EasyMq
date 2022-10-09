@@ -41,7 +41,7 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
 
 
 
-        GlobalScope.launch (Dispatchers.IO){
+
             for (messageUnit in producerToServerMessage.messages) {
 
 
@@ -78,7 +78,7 @@ class ProducerToServerMessageHandler(@Lazy var server: EasyServer) :
 
             }
 
-        }
+
         channelHandlerContext.fireChannelRead(producerToServerMessage)
 
 

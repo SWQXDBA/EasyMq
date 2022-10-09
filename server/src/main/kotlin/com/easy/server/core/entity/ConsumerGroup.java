@@ -23,9 +23,9 @@ public class ConsumerGroup {
     /**
      * 消费窗口，一个ConsumerGroup最多有这么多未回应的消息
      */
-    private static final Long windowSize = 1000L;
+    private static final Long windowSize = 500L;
 
-    private static final long timeoutMills = 30L;
+    private static final long timeoutMills = 50L;
     private static final long maxTimeoutMills = timeoutMills*5;
     private static final long startWaitingMills = 500L;
     /**
@@ -39,7 +39,7 @@ public class ConsumerGroup {
 
     public void initOffsetAsync(Topic topic, Long offset) {
 
-        TimeScheduler.runInBindExecutor(this,()->{
+        TimeScheduler.runInBindExecutorForce(this,()->{
             ArrayList<MessageState> window = new ArrayList<>();
             for (int i = 0; i < windowSize; i++) {
                 window.add(MessageState.UNSENT);

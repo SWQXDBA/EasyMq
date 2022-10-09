@@ -30,10 +30,7 @@ public class TimeScheduler {
         }
     });
     private static  ConcurrentHashMap<Object, EventExecutor> bindExecutors = new ConcurrentHashMap<>();
-    public static void runInBindExecutor(Object me,Runnable runnable,long delayMills){
-        final EventExecutor eventExecutor = bindExecutors.computeIfAbsent(me, (o -> executorGroup.next()));
-        eventExecutor.schedule(runnable,delayMills, TimeUnit.MILLISECONDS);
-    }
+
     static AtomicLong count = new AtomicLong();
     static{
          new Thread(new Runnable() {
@@ -54,17 +51,35 @@ public class TimeScheduler {
 
         final EventExecutor eventExecutor = bindExecutors.computeIfAbsent(me, (o -> executorGroup.next()));
         count.getAndIncrement();
-        eventExecutor.schedule(()->{
-            count.getAndDecrement();
-            try{
-                runnable.run();
-            }catch (Exception e){
-                log.warn("execute failed , will try it again on next time ");
-                e.printStackTrace();
-                runInBindExecutorForce(me,runnable,Math.max(delayMills,100));
-            }
-        },delayMills, TimeUnit.MILLISECONDS);
-    }
 
+        if(delayMills==0){
+            eventExecutor.execute(()->{
+                count.getAndDecrement();
+                try{
+                    runnable.run();
+                }catch (Exception e){
+                    log.warn("execute failed , will try it again on next time ");
+                    e.printStackTrace();
+                    runInBindExecutorForce(me,runnable,0);
+                }
+            });
+        }else{
+            eventExecutor.schedule(()->{
+                count.getAndDecrement();
+                try{
+                    runnable.run();
+                }catch (Exception e){
+                    log.warn("execute failed , will try it again on next time ");
+                    e.printStackTrace();
+                    runInBindExecutorForce(me,runnable,Math.max(delayMills,100));
+                }
+            },delayMills, TimeUnit.MILLISECONDS);
+        }
+
+    }
+    public static void runInBindExecutor(Object me,Runnable runnable,long delayMills){
+        final EventExecutor eventExecutor = bindExecutors.computeIfAbsent(me, (o -> executorGroup.next()));
+        eventExecutor.schedule(runnable,delayMills, TimeUnit.MILLISECONDS);
+    }
 
 }
