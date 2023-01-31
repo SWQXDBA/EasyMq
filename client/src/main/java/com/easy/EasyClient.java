@@ -206,6 +206,13 @@ public class EasyClient {
 
     }
 
+    /**
+     * 构建消息包 主要是生成messageId
+     * @param message
+     * @param topicName
+     * @return
+     * @throws JsonProcessingException
+     */
     private ProducerToServerMessageUnit buildMessageUnit(Object message, String topicName) throws JsonProcessingException {
         final byte[] bytes;
         bytes = objectMapper.writeValueAsBytes(message);

@@ -29,9 +29,9 @@ public class MultProducer {
                                 if (stop.get()) {
                                     return;
                                 }
-                                for (int j = 0; j < 6000; j++) {
+                                for (int j = 0; j < 8000; j++) {
 
-                                    client.sendToTopic("str", "topic"+ finalK);
+                                    client.sendToTopic("strstrstr", "topic"+ finalK);
                                 }
 
                             }
