@@ -1,5 +1,6 @@
-package com.easy;
+package com.easy.test;
 
+import com.easy.EasyClient;
 import com.easy.core.listener.DefaultListener;
 import com.easy.core.entity.MessageId;
 
